@@ -2,13 +2,52 @@
 #include "graph.hpp"
 #include "json.hpp"
 using namespace std;
+#if defined(PHASE1)
+    #include "graph.hpp"
+    #include "QueryProcessor.hpp"
+#elif defined(PHASE2)
+    #include "graph.hpp"
+    #include "QueryProcessor.hpp"
+#else
+    #error "No phase defined"
+#endif
 
+json processQuery(const json &q, Graph &g){
+    string type=q["type"];
+
+    #if defined(PHASE1)
+        if(type=="shortest_path"){
+            return shortest_path(q,g);
+        }
+        else if(type=="knn"){
+            return knn(q,g);
+        }
+        else if(type=="remove_edge"){
+            return removEdge(q,g);
+        }
+        else if(type=="modify_edge"){
+            return modify_edge(q,g);
+        }
+    #elif defined(PHASE2)
+        if(type=="k_shortest_paths"){
+            return k_shortest_paths(q,g);
+        }
+        else if(type=="k_shortest_paths_heuristic"){
+            return k_shortest_paths_heuristic(q,g);
+        }
+        else if(type=="approx_shortest_path"){
+            return approx_shortest_path(q,g);
+        }
+    #endif
+
+    return json{{"error", "Unknown query type"}, {"query_type", type}};
+}
 int main(int argc, char* argv[]){
-    if(argc<2){
+    if(argc!=4){
         cerr<<"Usage:"<< argv[0] << " <graph.json>" << endl;
         return 1;
     }
-    string filename = argv[0];
+    string filename = argv[1];
     ifstream fin(filename);
     if (!fin.is_open()) {
         cerr << "Error: Could not open file " << filename << endl;
@@ -42,6 +81,30 @@ int main(int argc, char* argv[]){
         }
         g.addEdge(id, u, v, length, avg_time, speed_profile, oneway, road_type);
     }
-
+    string file1name = argv[2];
+    ifstream fin(file1name);
+    if (!fin.is_open()) {
+        cerr << "Error: Could not open file " << file1name << endl;
+        return 1;
+    }
+    json q;
+    fin>>q;
+    string file2name=argv[3];
+    json out;
+    out["meta"]=q["meta"];
+    out["results"]=json::array();
+    auto start=chrono::high_resolution_clock::now();
+    for(auto &u: q["events"]){
+        json result=processQuery(q,g);
+        out["results"].push_back(result);
+    }
+    auto end = chrono::high_resolution_clock::now();
+    double time_ms=chrono::duration<double,milli>(end-start).count();
+    out["processing_time_ms"]=time_ms;
+    ofstream f(file2name);
+    if(!f.is_open()){
+        cerr<<"Can't write output file"<<endl;
+        exit(1);
+    }
     
 }
