@@ -94,3 +94,57 @@ pair<vector<int>,double> Graph::shortestPath_minDistance(int source, int destina
     return {path,dist[destination]};
     
 }
+
+std::vector<int> Graph::Knn(std::string poi_type,double query_lat,double query_lon,
+                                                    int K,std::string metric){
+
+    double mindist = std::numeric_limits<double>::max();
+    int node = -1;
+
+for (int i = 0;i < V;i++) {
+        bool has_poi = false;
+        for (const auto& poi : nodes[i]->pois) {
+            if (poi == poi_type) { has_poi = true; break; }
+        }
+        if (has_poi) {
+
+        double d = std::sqrt(
+            (nodes[i]->lat - query_lat) * (nodes[i]->lat - query_lat) +
+            (nodes[i]->lon - query_lon) * (nodes[i]->lon - query_lon)
+        );
+
+        if (d < mindist) {
+            mindist = d;
+            node = i;
+        }}
+    }
+    if(node==-1){return {};}
+
+    std::vector<std::pair<double, int>> distances;
+
+    for (int i = 0; i < V; ++i) {
+        if (i == node) continue;
+
+        double d;
+        if (metric == "euclidean") {
+            d = euclideanDistance(node, i);
+             distances.push_back({d, i});
+        } else if (metric == "shortest_path") {
+            bool possible;
+            auto res = shortestPath_minDistance(node, i, {}, {}, possible);
+            if(possible) {d=res.second;
+             distances.push_back({d, i});}
+
+        } else continue;
+
+    }
+
+    std::sort(distances.begin(), distances.end());
+    std::vector<int> knearest;
+    K=std::min(K, (int)distances.size());
+
+    for (int i = 0; i <K; ++i)
+        knearest.push_back(distances[i].second);
+
+    return knearest;
+}
