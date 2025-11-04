@@ -83,7 +83,57 @@ public:
         double lat2 = nodes[v]->lat;
         double lon2 = nodes[v]->lon;
         return std::sqrt((lat1 - lat2) * (lat1 - lat2) + (lon1 - lon2) * (lon1 - lon2));
-    } 
+    }
+    
+    std::pair<std::vector<int>,int> shortestPath_minDistance(int source, int destination, std::vector<int> forbidden_nodes, std::vector<string> forbidden_road_types, bool possible){
+        
+        std::vector<double> dist(V, std::numeric_limits<double>::max());
+        std::vector<int> prev(V, -1);
+        std::vector<bool> visited(V, false);
+
+        std::unordered_map<int, bool> forbidden_node_map;
+        for (int fn : forbidden_nodes) forbidden_node_map[fn] = true;
+
+        std::unordered_map<std::string, bool> forbidden_road_type_map;
+        for (const std::string& frt : forbidden_road_types) forbidden_road_type_map[frt] = true;
+
+        dist[source] = 0.0;
+        using PDI = std::pair<double, int>;
+        std::priority_queue<PDI, std::vector<PDI>, std::greater<PDI>> pq;
+        pq.push({0.0, source});
+
+        while (!pq.empty()) {
+            int u = pq.top().second;
+            pq.pop();
+            if (visited[u] || forbidden_node_map.count(u)) continue;
+            visited[u] = true;
+            if (u == destination) break;
+
+            for (const auto& [v, e] : adj[u]) {
+            if (visited[v] || forbidden_node_map.count(v)) continue;
+            if (e->blocked) continue;
+            if (forbidden_road_type_map.count(e->road_type)) continue;
+            double weight = euclideanDistance(u, v);
+            if (dist[u] + weight < dist[v]) {
+                dist[v] = dist[u] + weight;
+                prev[v] = u;
+                pq.push({dist[v], v});
+            }
+            }
+        }
+
+        std::vector<int> path;
+        if (dist[destination] == std::numeric_limits<double>::max()) {
+            possible = false;
+            return {{}, 0};
+        }
+        for (int at = destination; at != -1; at = prev[at])
+            path.push_back(at);
+        std::reverse(path.begin(), path.end());
+        possible = true;
+        return {path, static_cast<int>(dist[destination])};
+        
+    }
 
 };
 

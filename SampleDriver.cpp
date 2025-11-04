@@ -23,7 +23,7 @@ json processQuery(const json &q, Graph &g){
             return knn(q,g);
         }
         else if(type=="remove_edge"){
-            return removEdge(q,g);
+            return removeEdge(q,g);
         }
         else if(type=="modify_edge"){
             return modify_edge(q,g);
