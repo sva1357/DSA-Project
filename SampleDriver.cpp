@@ -48,7 +48,7 @@ json processQuery(const json &q, Graph &g){
 }
 int main(int argc, char* argv[]){
     if(argc!=4){
-        cerr<<"Usage:"<< argv[0] << " <graph.json>" << endl;
+        cerr<<"Usage:"<< argv[0] << " <graph.json> <queries.json> <output.json>" << endl;
         return 1;
     }
     string filename = argv[1];
@@ -97,14 +97,15 @@ int main(int argc, char* argv[]){
     json out;
     out["meta"]=q["meta"];
     out["results"]=json::array();
-    auto start=chrono::high_resolution_clock::now();
+    
     for(auto &u: q["events"]){
+        auto start_time=chrono::high_resolution_clock::now();
         json result=processQuery(q,g);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        result["processing_time"] = std::chrono::duration<double, std::milli>(end_time - start_time).count();
         out["results"].push_back(result);
     }
-    auto end = chrono::high_resolution_clock::now();
-    double time_ms=chrono::duration<double,milli>(end-start).count();
-    out["processing_time_ms"]=time_ms;
+
     ofstream f(file2name);
     if(!f.is_open()){
         cerr<<"Can't write output file"<<endl;
