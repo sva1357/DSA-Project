@@ -1,7 +1,11 @@
 #include<iostream>
-#include "graph.hpp"
-#include "json.hpp"
+#include<fstream>
+#include<chrono>
+#include <string>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 using namespace std;
+
 #if defined(PHASE1)
     #include "graph.hpp"
     #include "QueryProcessor.hpp"
