@@ -85,7 +85,7 @@ public:
         return std::sqrt((lat1 - lat2) * (lat1 - lat2) + (lon1 - lon2) * (lon1 - lon2));
     }
     
-    std::pair<std::vector<int>,int> shortestPath_minDistance(int source, int destination, std::vector<int> forbidden_nodes, std::vector<string> forbidden_road_types, bool possible){
+    std::pair<std::vector<int>,double> shortestPath_minDistance(int source, int destination, std::vector<int> forbidden_nodes, std::vector<string> forbidden_road_types, bool& possible){
         
         std::vector<double> dist(V, std::numeric_limits<double>::max());
         std::vector<int> prev(V, -1);
@@ -110,28 +110,28 @@ public:
             if (u == destination) break;
 
             for (const auto& [v, e] : adj[u]) {
-            if (visited[v] || forbidden_node_map.count(v)) continue;
-            if (e->blocked) continue;
-            if (forbidden_road_type_map.count(e->road_type)) continue;
-            double weight = euclideanDistance(u, v);
-            if (dist[u] + weight < dist[v]) {
-                dist[v] = dist[u] + weight;
-                prev[v] = u;
-                pq.push({dist[v], v});
-            }
+                if (visited[v] || forbidden_node_map.count(v)) continue;
+                if (e->blocked) continue;
+                if (forbidden_road_type_map.count(e->road_type)) continue;
+                double weight = euclideanDistance(u, v);
+                if (dist[u] + weight < dist[v]) {
+                    dist[v] = dist[u] + weight;
+                    prev[v] = u;
+                    pq.push({dist[v], v});
+                }
             }
         }
 
         std::vector<int> path;
         if (dist[destination] == std::numeric_limits<double>::max()) {
             possible = false;
-            return {{}, 0};
+            return {{}, -1};
         }
         for (int at = destination; at != -1; at = prev[at])
             path.push_back(at);
         std::reverse(path.begin(), path.end());
         possible = true;
-        return {path, static_cast<int>(dist[destination])};
+        return {path,dist[destination]};
         
     }
 
