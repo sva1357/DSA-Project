@@ -57,7 +57,10 @@ public:
     
     pair<vector<int>,double> shortestPath_minDistance(int source, int destination,
                                                                 vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool& possible);
+    pair<vector<int>, double> shortestPath_minTime(int source, int destination,vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool &possible);
 
+    pair<vector<int>, double> shortestPath_minTime_withSpeedProfile(int source, int destination,int start_time, vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool &possible);
+    
     vector<pair<double,int>> shortestPath_allDistances(int source);
     
     vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,string metric);
