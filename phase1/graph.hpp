@@ -64,6 +64,8 @@ public:
     vector<pair<double,int>> shortestPath_allDistances(int source);
     
     vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,string metric);
+
+   vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int target, int K, string mode) ;
         
 };
 

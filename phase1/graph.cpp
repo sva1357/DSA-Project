@@ -305,3 +305,93 @@ vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,s
     return knearest;
     
 }
+
+vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int target, int K, string mode) {
+    bool possible;
+    vector<int> forbidden_nodes;
+    vector<string> forbidden_road_types;
+
+    
+    pair<vector<int>, double> firstPath;
+    if (mode == "distance")
+        firstPath = shortestPath_minDistance(source, target, forbidden_nodes, forbidden_road_types, possible);
+    else
+        firstPath = shortestPath_minTime(source, target, forbidden_nodes, forbidden_road_types, possible);
+
+    if (!possible)
+        return {}; 
+
+    vector<pair<vector<int>, double>> A; 
+    A.push_back(firstPath);
+
+    using Candidate = pair<double, vector<int>>;
+    priority_queue<Candidate, vector<Candidate>, greater<Candidate>> B; 
+
+   
+    for (int k = 1; k < K; ++k) {
+        const vector<int>& prevPath = A[k - 1].first;
+
+       
+        for (size_t i = 0; i + 1 < prevPath.size(); ++i) {
+            int spurNode = prevPath[i];
+            vector<int> rootPath(prevPath.begin(), prevPath.begin() + i + 1);
+
+           
+            vector<pair<int, pair<int, Edge*>>> removedEdges;
+            for (const auto& [path, _] : A) {
+                if (path.size() > i && equal(rootPath.begin(), rootPath.end(), path.begin())) {
+                    int u = path[i];
+                    int v = path[i + 1];
+                    auto& adjList = adj[u];
+                    auto it = remove_if(adjList.begin(), adjList.end(),
+                        [v](auto& pr) { return pr.first == v; });
+                    if (it != adjList.end())
+                        adjList.erase(it, adjList.end());
+                }
+            }
+
+            vector<int> blockedNodes(rootPath.begin(), rootPath.end() - 1);
+
+         
+            bool spurPossible;
+            pair<vector<int>, double> spurPath;
+            if (mode == "distance")
+                spurPath = shortestPath_minDistance(spurNode, target, blockedNodes, {}, spurPossible);
+            else
+                spurPath = shortestPath_minTime(spurNode, target, blockedNodes, {}, spurPossible);
+
+            if (spurPossible && !spurPath.first.empty()) {
+                vector<int> totalPath = rootPath;
+                totalPath.pop_back();
+                totalPath.insert(totalPath.end(), spurPath.first.begin(), spurPath.first.end());
+
+                // Compute total length/time
+                double totalDist = 0.0;
+                if (mode == "distance") {
+                    for (size_t j = 0; j + 1 < totalPath.size(); ++j)
+                        totalDist += euclideanDistance(totalPath[j], totalPath[j + 1]);
+                } else {
+                    for (size_t j = 0; j + 1 < totalPath.size() - 1; ++j) {
+                        int u = totalPath[j];
+                        int v = totalPath[j + 1];
+                        for (auto& [to, e] : adj[u]) {
+                            if (to == v) { totalDist += e->avg_time; break; }
+                        }
+                    }
+                }
+
+                B.push({totalDist, totalPath});
+            }
+        }
+
+        // Step 4: If no candidates remain, stop
+        if (B.empty()) break;
+
+        // Step 5: Pick next shortest path
+        auto nextPath = B.top(); B.pop();
+        A.push_back({nextPath.second, nextPath.first});
+    }
+
+    return A;
+}
+
