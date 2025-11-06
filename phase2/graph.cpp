@@ -307,6 +307,3 @@ vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,s
     return knearest;
     
 }
-
-
-
