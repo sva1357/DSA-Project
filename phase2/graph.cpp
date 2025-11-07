@@ -307,3 +307,69 @@ vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,s
     return knearest;
     
 }
+
+vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int target, int K) {
+    if (V > 5000 || edges.size() > 5000) {
+        return {};
+    }
+
+    bool possible;
+    vector<pair<vector<int>, double>> result;    
+    vector<pair<vector<int>, double>> candidates; 
+
+    pair<vector<int>, double> first = shortestPath_minDistance(source, target, {}, {}, possible);
+    if (!possible) return {};
+
+    result.push_back(first);
+
+    for (int k = 1; result.size()< K; ++k) {
+        std::vector<int> prevPath = result[k - 1].first;
+
+        for (int i = 0; i + 1 < prevPath.size(); ++i) {
+            int spurNode = prevPath[i];
+            vector<int> root_path(prevPath.begin(), prevPath.begin() + i + 1);
+              std::vector<int> blocked(root_path.begin(), root_path.end()-1);
+
+            bool spurPossible;
+            pair<vector<int>, double> spur = shortestPath_minDistance(spurNode, target, blocked,{}, spurPossible);
+
+            if (!spurPossible || spur.first.empty()) continue;
+
+            vector<int> total_path = root_path;
+            total_path.pop_back();
+            total_path.insert(total_path.end(), spur.first.begin(), spur.first.end());
+
+            bool loopless = true;
+            for (size_t j = 0; j < total_path.size(); ++j)
+                for (size_t l = j+1; l < total_path.size(); ++l)
+                    if (total_path[j] == total_path[l]) loopless = false;
+            if (!loopless) continue;
+
+            double cost = 0.0;
+            for (int j = 0; j + 1 < total_path.size(); ++j)
+                cost += euclideanDistance(total_path[j], total_path[j + 1]);
+
+            bool duplicate = false;
+            for (auto& [p, _] : candidates)
+                if (p == total_path) {
+                    duplicate = true;
+                    break;
+                }
+
+            if (!duplicate)
+                candidates.push_back({total_path, cost});
+        }
+
+        if (candidates.empty()) break;
+
+        sort(candidates.begin(), candidates.end(),
+             [](const auto& a, const auto& b) { return a.second < b.second; });
+
+        result.push_back(candidates.front());
+        candidates.erase(candidates.begin());
+    }
+
+     sort(result.begin(), result.end(),
+             [](const auto& a, const auto& b) { return a.second < b.second; });
+    return result;
+}
