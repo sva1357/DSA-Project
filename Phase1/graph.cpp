@@ -190,14 +190,20 @@ pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
             if(forbidden_node_map.count(v)) continue;
             if(e->blocked) continue;
             if(forbidden_road_map.count(e->road_type)) continue;
-            if(e->speed_profile.empty()) continue; //  avoid mod 0
+            double new_time;
+            if(e->speed_profile.empty()){
+                double travel_time=e->avg_time;
+                new_time = curr_time + travel_time;
+            } //  avoid mod 0
+            else{
+                int t_index = (int(curr_time/900.0) % e->speed_profile.size());
+                double speed = e->speed_profile[t_index];
+                if(speed <= 0) continue;
 
-            int t_index = (int(curr_time) % e->speed_profile.size());
-            double speed = e->speed_profile[t_index];
-            if(speed <= 0) continue;
-
-            double travel_time = e->len / speed;
-            double new_time = curr_time + travel_time;
+                double travel_time = e->len / speed;
+                new_time = curr_time + travel_time;
+            }
+            
 
             if(new_time < dist[v]){
                 dist[v] = new_time;
@@ -214,7 +220,7 @@ pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
 
     vector<int> path;
     for(int at = destination; at != -1; at = prev[at]) path.push_back(at);
-    reverse(path.begin(), path.end());
+    std::reverse(path.begin(), path.end());
 
     possible = true;
     return {path, dist[destination] - start_time}; // spent time
