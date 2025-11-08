@@ -35,7 +35,7 @@ json shortest_path(const json &q, Graph &g){
     }
 
     else{
-        pair<vector<int>,double> result = g.shortestPath_minTime(src_id,target_id,forbidden_nodes,forbidden_road_types,possible);
+        pair<vector<int>,double> result = g.shortestPath_minTime_withSpeedProfile(src_id,target_id,forbidden_nodes,forbidden_road_types,possible);
         output["id"] = id;
         output["possible"] = possible;
         if(possible == false){
