@@ -322,7 +322,7 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
 
     result.push_back(first);
 
-    for (size_t k = 1; k< K; ++k) {
+    for (int k = 1; k< K; ++k) {
         std::vector<int> prevPath = result[k - 1].first;
 
         for (size_t i = 0; i + 1 < prevPath.size(); ++i) {

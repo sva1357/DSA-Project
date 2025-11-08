@@ -69,7 +69,7 @@ public:
     vector<int> knn(string poi_type,double query_lat,double query_lon,int K,string metric);
     
     vector<pair<vector<int>, double>> kShortestPaths_exact(int source, int target, int K) ;
-    double Graph::approxShortestDistance(int source, int destination, 
+    double approxShortestDistance(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct);
 
 };
