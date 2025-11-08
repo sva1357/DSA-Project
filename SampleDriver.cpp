@@ -47,6 +47,10 @@ json processQuery(const json &q, Graph &g){
     return json{{"error", "Unknown query type"}, {"query_type", type}};
 }
 int main(int argc, char* argv[]){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    cout.tie(nullptr);
+
     if(argc!=4){
         cerr<<"Usage:"<< argv[0] << " <graph.json> <queries.json> <output.json>" << endl;
         return 1;
@@ -57,8 +61,9 @@ int main(int argc, char* argv[]){
         cerr << "Error: Could not open file " << filename << endl;
         return 1;
     }
-    json j;
-    fin>>j;
+    string buffer((istreambuf_iterator<char>(fin)), istreambuf_iterator<char>());
+    json j = json::parse(buffer, nullptr, false);
+    if(j.is_discarded()){ cerr << "Invalid JSON file\n"; return 1; }
     auto meta=j["meta"];
 
     Graph g;
@@ -85,15 +90,10 @@ int main(int argc, char* argv[]){
         }
         g.addEdge(id, u, v, length, avg_time, speed_profile, oneway, road_type);
     }
-    string file1name = argv[2];
-    ifstream fin2(file1name);
-    if (!fin2.is_open()) {
-        cerr << "Error: Could not open file " << file1name << endl;
-        return 1;
-    }
-    json q;
-    fin2>>q;
-    string file2name=argv[3];
+    ifstream fin2(argv[2], ios::in | ios::binary);
+    string buffer2((istreambuf_iterator<char>(fin2)), istreambuf_iterator<char>());
+    json q = json::parse(buffer2, nullptr, false);
+
     json out;
     out["meta"]=q["meta"];
     out["results"]=json::array();
@@ -106,13 +106,9 @@ int main(int argc, char* argv[]){
         out["results"].push_back(result);
     }
 
-    ofstream f(file2name);
-    if(!f.is_open()){
-        cerr<<"Can't write output file"<<endl;
-        exit(1);
-    }
+    ofstream fout(argv[3], ios::out | ios::binary);
+    fout << out.dump();
 
-    f<<out.dump(4);
     return 0;
     
 }
