@@ -373,3 +373,53 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
              [](const auto& a, const auto& b) { return a.second < b.second; });
     return result;
 }
+
+double Graph::approxShortestDistance(int source, int destination, 
+                                     double time_budget_ms, double acceptable_error_pct)
+{
+    const double INF = numeric_limits<double>::infinity();
+    vector<double> dist(V, INF);
+
+    priority_queue<pair<double,int>, vector<pair<double,int>>, greater<pair<double,int>>> pq;
+
+    dist[source] = 0.0;
+    pq.push({0.0, source});
+
+    auto start_time = chrono::high_resolution_clock::now();
+
+    while(!pq.empty()) {
+        auto now = chrono::high_resolution_clock::now();
+        double elapsed_ms = chrono::duration<double, milli>(now - start_time).count();
+
+        // Time cutoff: return best known so far
+        if(elapsed_ms > time_budget_ms) {
+            // Optional: apply acceptable error
+            return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
+        }
+
+        auto [d, u] = pq.top();
+        pq.pop();
+
+        if(d > dist[u]) continue;
+        if(u == destination) break;
+
+        for(auto &nbr : adj[u]) {
+            int v = nbr.first;
+            Edge* e = nbr.second;
+            if(e->blocked) continue;
+
+            double w = e->len; // approximate using length only
+
+            if(dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+
+    // If destination is unreachable, dist[destination] remains INF
+    if(dist[destination] == INF) return -1.0;
+
+    // Apply acceptable error margin
+    return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
+}
