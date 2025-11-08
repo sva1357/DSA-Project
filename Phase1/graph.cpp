@@ -5,6 +5,7 @@ Graph::Graph():V(0){}
 void Graph::addNode(int id, double lat, double lon, vector<string> pois){
     Node* n=new Node(id,lat,lon,pois);
     nodes.push_back(n);
+    adj.push_back({});
     V++;
 }
 
@@ -12,7 +13,6 @@ void Graph::addEdge(int id, int u, int v, double length, double avg_time, vector
                 bool oneway, string road_type){
     Edge* e=new Edge(id,u,v,length,avg_time,speed_profile,oneway,road_type);
     edges[id]=e;
-    if(adj.size()<V) adj.resize(V);
     adj[u].push_back({v,e});
     if(!oneway){
         adj[v].push_back({u,e});
