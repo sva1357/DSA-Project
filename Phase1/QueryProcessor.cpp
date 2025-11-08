@@ -105,5 +105,6 @@ json modify_edge(const json &q, Graph &g){
     json output;
     output["id"] = id;
     output["done"] = true;
+    g.printGraph();
     return output;
 }

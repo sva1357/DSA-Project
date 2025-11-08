@@ -86,21 +86,21 @@ int main(int argc, char* argv[]){
         g.addEdge(id, u, v, length, avg_time, speed_profile, oneway, road_type);
     }
     string file1name = argv[2];
-    ifstream fin(file1name);
-    if (!fin.is_open()) {
+    ifstream fin2(file1name);
+    if (!fin2.is_open()) {
         cerr << "Error: Could not open file " << file1name << endl;
         return 1;
     }
     json q;
-    fin>>q;
+    fin2>>q;
     string file2name=argv[3];
     json out;
     out["meta"]=q["meta"];
     out["results"]=json::array();
     
-    for(auto &u: q["events"]){
+    for(auto &query: q["events"]){
         auto start_time=chrono::high_resolution_clock::now();
-        json result=processQuery(q,g);
+        json result=processQuery(query,g);
         auto end_time = std::chrono::high_resolution_clock::now();
         result["processing_time"] = std::chrono::duration<double, std::milli>(end_time - start_time).count();
         out["results"].push_back(result);
@@ -111,5 +111,8 @@ int main(int argc, char* argv[]){
         cerr<<"Can't write output file"<<endl;
         exit(1);
     }
+
+    f<<out.dump(4);
+    return 0;
     
 }

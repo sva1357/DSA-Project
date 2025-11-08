@@ -308,5 +308,24 @@ vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,s
     
 }
 
+void Graph::printGraph(){
+    cout << "Graph Nodes:" << endl;
+    for (const auto& node : nodes) {
+        cout << "Node ID: " << node->id << ", Lat: " << node->lat << ", Lon: " << node->lon << ", POIs: ";
+        for (const auto& poi : node->pois) {
+            cout << poi << " ";
+        }
+        cout << endl;
+    }
+
+    cout << "Graph Edges:" << endl;
+    for (const auto& [id, edge] : edges) {
+        cout << "Edge ID: " << edge->id << ", From: " << edge->u << ", To: " << edge->v
+             << ", Length: " << edge->len << ", Avg Time: " << edge->avg_time
+             << ", Oneway: " << (edge->oneway ? "Yes" : "No") << ", Road Type: " << edge->road_type
+             << ", Blocked: " << (edge->blocked ? "Yes" : "No") << endl;
+    }
+}
+
 
 
