@@ -96,112 +96,46 @@ pair<vector<int>,double> Graph::shortestPath_minDistance(int source, int destina
     return {path,dist[destination]};
     
 }
-pair<vector<int>, double> Graph::shortestPath_minTime(int source, int destination,
-                    vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool &possible){
+// pair<vector<int>, double> Graph::shortestPath_minTime(int source, int destination,
+//                     vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool &possible){
 
-    vector<double> dist(V, numeric_limits<double>::max());
-    vector<int> prev(V, -1);
-    vector<bool> visited(V, false);
-
-    unordered_map<int, bool> forbidden_node_map;
-    for(int fn: forbidden_nodes) forbidden_node_map[fn] = true;
-
-    unordered_map<string, bool> forbidden_road_map;
-    for(const string& frt: forbidden_road_types) forbidden_road_map[frt] = true;
-
-    if(forbidden_node_map.count(source) || forbidden_node_map.count(destination)){
-        possible = false;
-        return {{}, -1};
-    }
-
-    dist[source] = 0.0;
-    using PDI = pair<double,int>;
-    priority_queue<PDI, vector<PDI>, greater<PDI>> pq;
-    pq.push({0.0, source});
-
-    while(!pq.empty()){
-        int u = pq.top().second; pq.pop();
-        if(visited[u] || forbidden_node_map.count(u)) continue;
-        visited[u] = true;
-
-        if(u == destination) break;
-
-        for(const auto& [v, e] : adj[u]){
-            if(visited[v] || forbidden_node_map.count(v)) continue;
-            if(e->blocked) continue;
-            if(forbidden_road_map.count(e->road_type)) continue;
-
-            double weight = e->avg_time;
-            if(dist[u] + weight < dist[v]){
-                dist[v] = dist[u] + weight;
-                prev[v] = u;
-                pq.push({dist[v], v});
-            }
-        }
-    }
-
-    if(dist[destination] == numeric_limits<double>::max()){
-        possible = false;
-        return {{}, -1};
-    }
-
-    vector<int> path;
-    for(int at = destination; at != -1; at = prev[at]) path.push_back(at);
-    reverse(path.begin(), path.end());
-
-    possible = true;
-    return {path, dist[destination]};
-}
-
-// pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
-//     int source, int destination,
-//     int start_time, vector<int> forbidden_nodes,
-//     vector<string> forbidden_road_types, bool &possible)
-// {
 //     vector<double> dist(V, numeric_limits<double>::max());
 //     vector<int> prev(V, -1);
+//     vector<bool> visited(V, false);
 
 //     unordered_map<int, bool> forbidden_node_map;
 //     for(int fn: forbidden_nodes) forbidden_node_map[fn] = true;
 
 //     unordered_map<string, bool> forbidden_road_map;
-//     for(const string &frt: forbidden_road_types) forbidden_road_map[frt] = true;
+//     for(const string& frt: forbidden_road_types) forbidden_road_map[frt] = true;
 
 //     if(forbidden_node_map.count(source) || forbidden_node_map.count(destination)){
 //         possible = false;
 //         return {{}, -1};
 //     }
 
-//     dist[source] = start_time;
+//     dist[source] = 0.0;
 //     using PDI = pair<double,int>;
 //     priority_queue<PDI, vector<PDI>, greater<PDI>> pq;
-//     pq.push({start_time, source});
+//     pq.push({0.0, source});
 
 //     while(!pq.empty()){
-//         auto [curr_time, u] = pq.top(); pq.pop();
-
-//         if(curr_time > dist[u]) continue;  //  ignore outdated queue entries
+//         int u = pq.top().second; pq.pop();
+//         if(visited[u] || forbidden_node_map.count(u)) continue;
+//         visited[u] = true;
 
 //         if(u == destination) break;
 
-//         for(const auto &[v, e] : adj[u]){
-
-//             if(forbidden_node_map.count(v)) continue;
+//         for(const auto& [v, e] : adj[u]){
+//             if(visited[v] || forbidden_node_map.count(v)) continue;
 //             if(e->blocked) continue;
 //             if(forbidden_road_map.count(e->road_type)) continue;
-//             if(e->speed_profile.empty()) continue; //  avoid mod 0
 
-//             int t_index = (int(curr_time) % e->speed_profile.size());
-//             double speed = e->speed_profile[t_index];
-//             if(speed <= 0) continue;
-
-//             double travel_time = e->len / speed;
-//             double new_time = curr_time + travel_time;
-
-//             if(new_time < dist[v]){
-//                 dist[v] = new_time;
+//             double weight = e->avg_time;
+//             if(dist[u] + weight < dist[v]){
+//                 dist[v] = dist[u] + weight;
 //                 prev[v] = u;
-//                 pq.push({new_time, v});
+//                 pq.push({dist[v], v});
 //             }
 //         }
 //     }
@@ -216,8 +150,75 @@ pair<vector<int>, double> Graph::shortestPath_minTime(int source, int destinatio
 //     reverse(path.begin(), path.end());
 
 //     possible = true;
-//     return {path, dist[destination] - start_time}; // spent time
+//     return {path, dist[destination]};
 // }
+
+pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
+    int source, int destination,
+     vector<int> forbidden_nodes,
+    vector<string> forbidden_road_types, bool &possible)
+{
+    int start_time=0;
+    vector<double> dist(V, numeric_limits<double>::max());
+    vector<int> prev(V, -1);
+
+    unordered_map<int, bool> forbidden_node_map;
+    for(int fn: forbidden_nodes) forbidden_node_map[fn] = true;
+
+    unordered_map<string, bool> forbidden_road_map;
+    for(const string &frt: forbidden_road_types) forbidden_road_map[frt] = true;
+
+    if(forbidden_node_map.count(source) || forbidden_node_map.count(destination)){
+        possible = false;
+        return {{}, -1};
+    }
+
+    dist[source] = start_time;
+    using PDI = pair<double,int>;
+    priority_queue<PDI, vector<PDI>, greater<PDI>> pq;
+    pq.push({start_time, source});
+
+    while(!pq.empty()){
+        auto [curr_time, u] = pq.top(); pq.pop();
+
+        if(curr_time > dist[u]) continue;  //  ignore outdated queue entries
+
+        if(u == destination) break;
+
+        for(const auto &[v, e] : adj[u]){
+
+            if(forbidden_node_map.count(v)) continue;
+            if(e->blocked) continue;
+            if(forbidden_road_map.count(e->road_type)) continue;
+            if(e->speed_profile.empty()) continue; //  avoid mod 0
+
+            int t_index = (int(curr_time) % e->speed_profile.size());
+            double speed = e->speed_profile[t_index];
+            if(speed <= 0) continue;
+
+            double travel_time = e->len / speed;
+            double new_time = curr_time + travel_time;
+
+            if(new_time < dist[v]){
+                dist[v] = new_time;
+                prev[v] = u;
+                pq.push({new_time, v});
+            }
+        }
+    }
+
+    if(dist[destination] == numeric_limits<double>::max()){
+        possible = false;
+        return {{}, -1};
+    }
+
+    vector<int> path;
+    for(int at = destination; at != -1; at = prev[at]) path.push_back(at);
+    reverse(path.begin(), path.end());
+
+    possible = true;
+    return {path, dist[destination] - start_time}; // spent time
+}
 
 vector<pair<double,int>> Graph::shortestPath_allDistances(int source){
     vector<double> dist(V, numeric_limits<double>::max());
