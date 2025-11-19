@@ -456,3 +456,21 @@ double Graph::approxShortestDistance(int source, int destination,
 
     return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
 }
+
+bool Graph::isOverlapping(vector<Node*> path1, vector<Node*> path2, int threshold){
+    int overlap_count=0;
+    unordered_map<int,int> edges_map;
+    for(int i=0; i+1<path1.size(); i++){
+        edges_map[path1[i]->id]=path1[i+1]->id;
+    }
+    for(int i=0; i+1<path2.size(); i++){
+        int u=path2[i]->id;
+        int v=path2[i+1]->id;
+        if(edges_map.find(u)!=edges_map.end() && edges_map[u]==v){
+            overlap_count++;
+        }
+    }
+    int percentage_overlap=(overlap_count*100)/(path2.size()-1);
+    if(percentage_overlap>=threshold) return true;
+    return false;
+}  
