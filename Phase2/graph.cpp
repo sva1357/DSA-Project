@@ -429,7 +429,6 @@ double Graph::approxShortestDistance(int source, int destination,
 
         // Time cutoff: return best known so far
         if(elapsed_ms > time_budget_ms) {
-            // Optional: apply acceptable error
             return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
         }
 
@@ -444,7 +443,7 @@ double Graph::approxShortestDistance(int source, int destination,
             Edge* e = nbr.second;
             if(e->blocked) continue;
 
-            double w = e->len; // approximate using length only
+            double w = e->len; 
 
             if(dist[u] + w < dist[v]) {
                 dist[v] = dist[u] + w;
@@ -453,9 +452,7 @@ double Graph::approxShortestDistance(int source, int destination,
         }
     }
 
-    // If destination is unreachable, dist[destination] remains INF
     if(dist[destination] == INF) return -1.0;
 
-    // Apply acceptable error margin
     return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
 }
