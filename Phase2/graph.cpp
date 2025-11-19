@@ -457,59 +457,85 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
 //     return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
 // }
 
-double Graph::approxShortestDistance(int source, int destination, 
-                                     double time_budget_ms, 
-                                     double acceptable_error_pct)
+double Graph::approxShortestDistance(
+        int source,
+        int destination,
+        double time_budget_ms,
+        double acceptable_error_pct)
 {
     auto start_time = chrono::high_resolution_clock::now();
 
-    // --- Min-heap: (f = g + h, node) ---
-    using T = pair<double, int>;
-    priority_queue<T, vector<T>, greater<T>> pq;
+    using QItem = pair<double, int>; // (f = g + h, node)
+    priority_queue<QItem, vector<QItem>, greater<QItem>> pq;
 
     vector<double> dist(V, numeric_limits<double>::infinity());
-    dist[source] = 0.0;
+    dist[source] = 0;
 
-    // Heuristic: Euclidean distance (works well)
     auto heuristic = [&](int u, int v) {
         return euclideanDistance(u, v);
     };
 
+    double best_upper_bound = 1e18;   // ← always keep an upper bound
+
     pq.push({heuristic(source, destination), source});
 
-    while (!pq.empty()) {
-        auto now = chrono::high_resolution_clock::now();
-        double elapsed_ms = chrono::duration<double, milli>(now - start_time).count();
+    int it = 0;
 
-        // --- ⏳ Stop if we exceed time budget ---
-        if (elapsed_ms > time_budget_ms) {
-            // return approximate (g + 5% allowed error)
-            double best = dist[destination];
-            if (best < 1e-9) return -1; // no info yet
-            return best * (1.0 + acceptable_error_pct / 100.0);
+    while (!pq.empty()) {
+
+        // Check time every 1024 iterations (fast!)
+        if ((it++ & 1023) == 0) {
+            double elapsed = chrono::duration<double, milli>(
+                                chrono::high_resolution_clock::now()
+                                - start_time).count();
+            if (elapsed > time_budget_ms) {
+
+                double best_real = dist[destination];
+
+                if (best_real < 1e17) {
+                    // Return improved approx using actual explored g-values
+                    return best_real * (1.0 + acceptable_error_pct / 100.0);
+                }
+
+                // Otherwise fallback to heuristic bound
+                return best_upper_bound *
+                    (1.0 + acceptable_error_pct / 100.0);
+            }
+
         }
 
         auto [f, u] = pq.top();
         pq.pop();
 
-        if (u == destination)
-            return dist[u];   // already optimal (found early thanks to A*)
+        // Update best known upper bound
+        // f = g + h is always ≤ true dist
+        if (f < best_upper_bound) best_upper_bound = f;
 
+        // Early exact success
+        if (u == destination) {
+            return dist[u]; // exact shortest path reached
+        }
+
+        // Explore neighbors
         for (auto &nbr : adj[u]) {
             int v = nbr.first;
-            Edge* e = nbr.second;
-
-            double w = e->len;
+            double w = nbr.second->len;
             double nd = dist[u] + w;
 
             if (nd < dist[v]) {
                 dist[v] = nd;
                 double h = heuristic(v, destination);
-                pq.push({nd + h, v});
+                double nf = nd + h;
+
+                pq.push({nf, v});
+
+                // update conservative upper bound
+                if (nf < best_upper_bound)
+                    best_upper_bound = nf;
             }
         }
     }
 
-    // Destination unreachable → return -1
-    return -1.0;
+    // If no path exists
+    return -1;
 }
