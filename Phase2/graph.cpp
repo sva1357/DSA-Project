@@ -1,4 +1,5 @@
 #include "graph.hpp"
+#include <unordered_set>
 
 Graph::Graph():V(0){}
 
@@ -317,77 +318,107 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
     vector<pair<vector<int>, double>> result;
     vector<pair<vector<int>, double>> candidates;
 
-    pair<vector<int>, double> first = shortestPath_minDistance(source, target, {}, {}, possible);
-    if (!possible) return {};
+    // FIRST SHORTEST PATH
+    auto first = shortestPath_minDistance(source, target, {}, {}, possible);
+    if (!possible || first.first.empty()) return {};
     result.push_back(first);
 
     for (int k = 1; k < K; ++k) {
-        vector<int> prevPath = result[k - 1].first;
+
+        const auto &prevPath = result.back().first;
+
+        candidates.clear();  
 
         for (size_t i = 0; i + 1 < prevPath.size(); ++i) {
 
             int spurNode = prevPath[i];
             vector<int> root_path(prevPath.begin(), prevPath.begin() + i + 1);
 
-            vector<int> blocked;
+           
+            unordered_set<int> blocked_nodes;
+            for (int node : root_path)
+                if (node != spurNode)
+                    blocked_nodes.insert(node);
 
-            for (auto &rp : result) {
-                if (rp.first.size() <= i) continue;
+            
+            vector<Edge*> blocked_edges;
+
+            for (const auto &rp : result) {
+                if (rp.first.size() <= i + 1) continue;
 
                 bool samePrefix = true;
-                for (size_t t = 0; t <= i; ++t) {
+                for (size_t t = 0; t <= i; ++t)
                     if (rp.first[t] != root_path[t]) {
                         samePrefix = false;
                         break;
                     }
-                }
 
-                if (samePrefix)
-                    blocked.push_back(rp.first[i]);   
+                if (!samePrefix) continue;
+
+                int from = rp.first[i];
+                int to   = rp.first[i + 1];
+
+                for (auto &[nbr, e] : adj[from]) {
+                    if (nbr == to) {
+                        e->blocked = true;
+                        blocked_edges.push_back(e);
+                    }
+                }
             }
 
             bool spurPossible;
-    pair<vector<int>, double> spur = shortestPath_minDistance(spurNode, target,blocked,{}, spurPossible);
+            vector<int> forbidden_nodes_vec(blocked_nodes.begin(), blocked_nodes.end());
 
-            if (!spurPossible || spur.first.empty())
-                continue;
+            auto spur = shortestPath_minDistance(
+                spurNode, target,
+                forbidden_nodes_vec,
+                {},
+                spurPossible
+            );
+
+            for (Edge *e : blocked_edges) e->blocked = false;
+
+            if (!spurPossible || spur.first.empty()) continue;
 
             vector<int> total_path = root_path;
             total_path.pop_back();
-            total_path.insert(total_path.end(), spur.first.begin(), spur.first.end());
+            total_path.insert(total_path.end(),
+                              spur.first.begin(), spur.first.end());
 
-    
+        
+          unordered_set<int> seen;
             bool loopless = true;
-            for (size_t u = 0; u < total_path.size(); ++u)
-                for (size_t v = u + 1; v < total_path.size(); ++v)
-                    if (total_path[u] == total_path[v])
-                        loopless = false;
+            for (int n : total_path)
+                if (!seen.insert(n).second) {
+                    loopless = false;
+                    break;
+                }
             if (!loopless) continue;
 
     
-            double cost = 0.0;
+            double cost = 0;
+            bool ok = true;
+
             for (size_t j = 0; j + 1 < total_path.size(); ++j) {
                 int u = total_path[j];
                 int v = total_path[j + 1];
-
                 bool found = false;
+
                 for (auto &[nbr, e] : adj[u]) {
                     if (nbr == v) {
-                        cost += e->len;   
+                        cost += e->len;
                         found = true;
                         break;
                     }
                 }
-
-                if (!found) {
-                    cost = numeric_limits<double>::max();
-                    break;
-                }
+                if (!found) { ok = false; break; }
             }
+            if (!ok) continue;
 
+        
             bool exists = false;
-            for (auto &cand : candidates)
-                if (cand.first == total_path)
+            for (auto &c : candidates)
+                if (c.first == total_path)
                     exists = true;
 
             if (!exists)
@@ -397,14 +428,14 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
         if (candidates.empty()) break;
 
         sort(candidates.begin(), candidates.end(),
-             [](auto &a, auto &b) { return a.second < b.second; });
+             [](const auto &a, const auto &b) {
+                 return a.second < b.second;
+             });
 
         result.push_back(candidates.front());
-        candidates.erase(candidates.begin());
-    }
 
-    sort(result.begin(), result.end(),
-         [](auto &a, auto &b) { return a.second < b.second; });
+        candidates.erase(candidates.begin()); 
+    }
 
     return result;
 }
