@@ -312,67 +312,103 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
     if (V > 5000 || edges.size() > 5000) {
         return {};
     }
- 
+
     bool possible;
-    vector<pair<vector<int>, double>> result;    
-    vector<pair<vector<int>, double>> candidates; 
+    vector<pair<vector<int>, double>> result;
+    vector<pair<vector<int>, double>> candidates;
 
     pair<vector<int>, double> first = shortestPath_minDistance(source, target, {}, {}, possible);
     if (!possible) return {};
-
     result.push_back(first);
 
-    for (int k = 1; k< K; ++k) {
-        std::vector<int> prevPath = result[k - 1].first;
+    for (int k = 1; k < K; ++k) {
+        vector<int> prevPath = result[k - 1].first;
 
         for (size_t i = 0; i + 1 < prevPath.size(); ++i) {
+
             int spurNode = prevPath[i];
             vector<int> root_path(prevPath.begin(), prevPath.begin() + i + 1);
-              std::vector<int> blocked(root_path.begin(), root_path.end()-1);
+
+            vector<int> blocked;
+
+            for (auto &rp : result) {
+                if (rp.first.size() <= i) continue;
+
+                bool samePrefix = true;
+                for (size_t t = 0; t <= i; ++t) {
+                    if (rp.first[t] != root_path[t]) {
+                        samePrefix = false;
+                        break;
+                    }
+                }
+
+                if (samePrefix)
+                    blocked.push_back(rp.first[i]);   
+            }
 
             bool spurPossible;
-            pair<vector<int>, double> spur = shortestPath_minDistance(spurNode, target, blocked,{}, spurPossible);
+    pair<vector<int>, double> spur = shortestPath_minDistance(spurNode, target,blocked,{}, spurPossible);
 
-            if (!spurPossible || spur.first.empty()) continue;
+            if (!spurPossible || spur.first.empty())
+                continue;
 
             vector<int> total_path = root_path;
             total_path.pop_back();
             total_path.insert(total_path.end(), spur.first.begin(), spur.first.end());
 
+    
             bool loopless = true;
-            for (size_t j = 0; j < total_path.size(); ++j)
-                for (size_t l = j+1; l < total_path.size(); ++l)
-                    if (total_path[j] == total_path[l]) loopless = false;
+            for (size_t u = 0; u < total_path.size(); ++u)
+                for (size_t v = u + 1; v < total_path.size(); ++v)
+                    if (total_path[u] == total_path[v])
+                        loopless = false;
             if (!loopless) continue;
 
+    
             double cost = 0.0;
-            for (size_t j = 0; j + 1 < total_path.size(); ++j)
-                cost += euclideanDistance(total_path[j], total_path[j + 1]);
+            for (size_t j = 0; j + 1 < total_path.size(); ++j) {
+                int u = total_path[j];
+                int v = total_path[j + 1];
 
-            bool duplicate = false;
-            for (auto& [p, _] : candidates)
-                if (p == total_path) {
-                    duplicate = true;
-                    break;
+                bool found = false;
+                for (auto &[nbr, e] : adj[u]) {
+                    if (nbr == v) {
+                        cost += e->length;   
+                        found = true;
+                        break;
+                    }
                 }
 
-            if (!duplicate)
+                if (!found) {
+                    cost = numeric_limits<double>::max();
+                    break;
+                }
+            }
+
+            bool exists = false;
+            for (auto &cand : candidates)
+                if (cand.first == total_path)
+                    exists = true;
+
+            if (!exists)
                 candidates.push_back({total_path, cost});
         }
 
         if (candidates.empty()) break;
 
         sort(candidates.begin(), candidates.end(),
-             [](const auto& a, const auto& b) { return a.second < b.second; });
+             [](auto &a, auto &b) { return a.second < b.second; });
 
         result.push_back(candidates.front());
         candidates.erase(candidates.begin());
     }
 
-     sort(result.begin(), result.end(),
-             [](const auto& a, const auto& b) { return a.second < b.second; });
+    sort(result.begin(), result.end(),
+         [](auto &a, auto &b) { return a.second < b.second; });
+
     return result;
 }
+
 
 double Graph::approxShortestDistance(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct)
