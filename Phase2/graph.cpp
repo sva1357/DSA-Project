@@ -373,7 +373,7 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
                 bool found = false;
                 for (auto &[nbr, e] : adj[u]) {
                     if (nbr == v) {
-                        cost += e->length;   
+                        cost += e->len;   
                         found = true;
                         break;
                     }
