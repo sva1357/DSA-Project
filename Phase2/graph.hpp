@@ -72,6 +72,8 @@ public:
     double approxShortestDistance(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct);
 
+    bool isOverlapping(vector<Node*> path1, vector<Node*> path2, int threshold);
+
 };
 
 
