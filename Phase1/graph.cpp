@@ -75,7 +75,7 @@ pair<vector<int>,double> Graph::shortestPath_minDistance(int source, int destina
             if (visited[v] || forbidden_node_map.count(v)) continue;
             if (e->blocked) continue;
             if (forbidden_road_type_map.count(e->road_type)) continue;
-            double weight = euclideanDistance(u, v);
+            double weight = e->len;
             if (dist[u] + weight < dist[v]) {
                 dist[v] = dist[u] + weight;
                 prev[v] = u;
@@ -244,7 +244,7 @@ vector<pair<double,int>> Graph::shortestPath_allDistances(int source){
         for (const auto& [v, e] : adj[u]) {
             if (visited[v]) continue;
             if (e->blocked) continue;
-            double weight = euclideanDistance(u, v);
+            double weight = e->len;
             if (dist[u] + weight < dist[v]) {
                 dist[v] = dist[u] + weight;
                 pq.push({dist[v], v});
