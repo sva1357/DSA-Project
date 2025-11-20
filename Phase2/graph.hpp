@@ -6,6 +6,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <limits>
+#include <iostream>
 #include <queue>
 #include <chrono>
 using namespace std;
@@ -72,7 +73,8 @@ public:
     double approxShortestDistance(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct);
 
-    bool isOverlapping(vector<Node*> path1, vector<Node*> path2, int threshold);
+    bool isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_percentage);
+    vector<pair<vector<int>, double>> kShortestPaths_Heuristic(int source, int target, int K, int threshold);
 
 };
 

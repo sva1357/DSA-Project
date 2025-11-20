@@ -107,7 +107,7 @@ int main(int argc, char* argv[]){
     }
 
     ofstream fout(argv[3], ios::out | ios::binary);
-    fout << out.dump();
+    fout << out.dump(4);
 
     return 0;
     
