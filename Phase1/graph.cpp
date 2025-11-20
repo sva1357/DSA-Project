@@ -155,19 +155,22 @@ pair<vector<int>,double> Graph::shortestPath_minDistance(int source, int destina
 
 pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
     int source, int destination,
-     vector<int> forbidden_nodes,
+    vector<int> forbidden_nodes,
     vector<string> forbidden_road_types, bool &possible)
 {
-    int start_time=0;
+    int start_time = 0;
     vector<double> dist(V, numeric_limits<double>::max());
     vector<int> prev(V, -1);
 
+    // Map for quick lookup of forbidden nodes
     unordered_map<int, bool> forbidden_node_map;
     for(int fn: forbidden_nodes) forbidden_node_map[fn] = true;
 
+    // Map for quick lookup of forbidden road types
     unordered_map<string, bool> forbidden_road_map;
     for(const string &frt: forbidden_road_types) forbidden_road_map[frt] = true;
 
+    // Check if source or destination is forbidden
     if(forbidden_node_map.count(source) || forbidden_node_map.count(destination)){
         possible = false;
         return {{}, -1};
@@ -181,8 +184,7 @@ pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
     while(!pq.empty()){
         auto [curr_time, u] = pq.top(); pq.pop();
 
-        if(curr_time > dist[u]) continue;  //  ignore outdated queue entries
-
+        if(curr_time > dist[u]) continue;  // ignore outdated entries
         if(u == destination) break;
 
         for(const auto &[v, e] : adj[u]){
@@ -190,20 +192,38 @@ pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
             if(forbidden_node_map.count(v)) continue;
             if(e->blocked) continue;
             if(forbidden_road_map.count(e->road_type)) continue;
-            double new_time;
-            if(e->speed_profile.empty()){
-                double travel_time=e->avg_time;
-                new_time = curr_time + travel_time;
-            } //  avoid mod 0
-            else{
-                int t_index = (int(curr_time/900.0) % e->speed_profile.size());
-                double speed = e->speed_profile[t_index];
-                if(speed <= 0) continue;
 
-                double travel_time = e->len / speed;
-                new_time = curr_time + travel_time;
+            double new_time;
+
+            if(e->speed_profile.empty()){
+                // If no speed profile, use average travel time
+                new_time = curr_time + e->avg_time;
             }
-            
+            else{
+                // Travel edge accounting for speed changes every 15 minutes
+                double remaining_len = e->len;
+                double t = curr_time;  // current time on edge
+
+                while(remaining_len > 1e-9){
+                    int t_index = std::min(int(t / 900.0), (int)e->speed_profile.size() - 1);
+                    double speed = e->speed_profile[t_index];
+                    if(speed <= 0) break;  // cannot travel
+
+                    double interval_end = (t_index + 1) * 900.0;  // end of current 15-min interval
+                    double dt = interval_end - t;  // time left in this interval
+                    double d_can_travel = speed * dt;
+
+                    if(d_can_travel >= remaining_len){
+                        t += remaining_len / speed;
+                        remaining_len = 0;
+                    } else {
+                        remaining_len -= d_can_travel;
+                        t = interval_end;
+                    }
+                }
+
+                new_time = t;
+            }
 
             if(new_time < dist[v]){
                 dist[v] = new_time;
@@ -218,6 +238,7 @@ pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
         return {{}, -1};
     }
 
+    // Reconstruct path
     vector<int> path;
     for(int at = destination; at != -1; at = prev[at]) path.push_back(at);
     std::reverse(path.begin(), path.end());
