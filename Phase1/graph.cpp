@@ -254,6 +254,7 @@ vector<pair<double,int>> Graph::shortestPath_allDistances(int source){
 
     vector<pair<double,int>> allDistances;
     for (int i = 0; i < V; ++i) {
+        if(dist[i] == numeric_limits<double>::max()) continue;
         allDistances.push_back({dist[i], i});
     }
     return allDistances;
