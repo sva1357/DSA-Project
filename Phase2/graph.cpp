@@ -310,9 +310,7 @@ vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,s
 }
 
 vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int target, int K) {
-    if (V > 5000 || edges.size() > 5000) {
-        return {};
-    }
+   
 
     bool possible;
     vector<pair<vector<int>, double>> result;
@@ -327,7 +325,6 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
 
         const auto &prevPath = result.back().first;
 
-        candidates.clear();  
 
         for (size_t i = 0; i + 1 < prevPath.size(); ++i) {
 

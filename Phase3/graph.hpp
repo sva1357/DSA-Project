@@ -39,21 +39,7 @@ public:
         :id(id), u(u), v(v), len(length), avg_time(avg_time), speed_profile(speed_profile), oneway(oneway), road_type(road_type), blocked(false) {}
 };
 
-// ---------- Delivery-specific classes ----------
-struct DeliveryNode {
-    double x, y;
-    int id; // corresponds to graph node id
-};
 
-struct Order {
-    int pickup;    // node id
-    int delivery;  // node id
-    DeliveryNode pickupNode;
-    DeliveryNode deliveryNode;
-    DeliveryNode center;  // midpoint for clustering
-};
-
-// ---------- Graph class ----------
 class Graph{
 
     vector<Node*> nodes;
@@ -95,18 +81,11 @@ public:
 
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic_svp(int source, int target, int K, int threshold);
 
-    // ---------- Delivery-specific methods ----------
-    // Iterative clustering (k-means style)
-    vector<vector<Order>> clusterOrdersIterative(vector<Order> orders, int n_riders, int max_iters = 10);
+    vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>> orders);
 
-    // Greedy TSP route for one rider (pickup->delivery precedence)
-    vector<int> buildRoute(int depot, const vector<Order> &orders, const vector<vector<double>> &distances);
-
-    // Helper: Euclidean distance between delivery nodes
-    static double euclidean(const DeliveryNode &a, const DeliveryNode &b) {
-        return sqrt((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
-    }
-
+   vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,int no_agents,vector<int>cluster) ;
+   pair<double,double> computetime(vector<int> route, unordered_map<int,pair<int,int>> orders);
+   double getShortestPathTravelTime(int start, int end);
     vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
 
 };
