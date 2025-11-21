@@ -41,15 +41,27 @@ json approx_shortest_path(const json &q, Graph &g){
     json output;
     double time_budget_ms = q["time_budget_ms"];
     double acceptable_error_pct = q["acceptable_error_pct"];
+    double time_remaining_ms = time_budget_ms-0.5;
+    int done_queries = 0;
     for(const auto& query: q["queries"]){
+
         int source = query["source"];
         int destination = query["target"];
-        double approx_distance = g.approxShortestDistance(source, destination, time_budget_ms, acceptable_error_pct);
+        double time_for_query_ms = time_remaining_ms / (q["queries"].size()- done_queries);
+        double start_time = std::chrono::duration<double, std::milli>(
+            std::chrono::high_resolution_clock::now().time_since_epoch()
+        ).count();
+        double approx_distance = g.approxShortestDistance(source, destination, time_for_query_ms, acceptable_error_pct);
+        double end_time = std::chrono::duration<double, std::milli>(
+            std::chrono::high_resolution_clock::now().time_since_epoch()
+        ).count();
+        time_remaining_ms -= (end_time - start_time);
         json query_result;
         query_result["source"] = source;
         query_result["target"] = destination;
         query_result["approx_shortest_distance"] = approx_distance;
         output["distances"].push_back(query_result);
+        done_queries++;
     }
     output["id"] = id;
     return output;

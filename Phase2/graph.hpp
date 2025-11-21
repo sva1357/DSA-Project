@@ -73,7 +73,11 @@ public:
     double approxShortestDistance(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct);
 
-    bool isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_percentage);
+    bool isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_count);
+    
+    vector<pair<vector<int>, double>> s_to_allnodes_shortestpaths(int source);
+    vector<pair<vector<int>, double>> allnodes_to_t_shortest_paths(int target);
+
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic(int source, int target, int K, int threshold);
 
 };

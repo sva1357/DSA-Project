@@ -563,8 +563,8 @@ double Graph::approxShortestDistance(
     return -1.0;
 }
 
-bool Graph::isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_percentage){
-    int overlap_count=0;
+bool Graph::isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_count){
+    overlap_count=0;
     unordered_map<int,int> edges_map;
     for(size_t i=0; i+1<path1.size(); i++){
         edges_map[path1[i]]=path1[i+1];
@@ -576,134 +576,166 @@ bool Graph::isOverlapping(vector<int> path1, vector<int> path2, int threshold, i
             overlap_count++;
         }
     }
-    overlap_percentage=(overlap_count*100)/(path2.size()-1);
+    double overlap_percentage=(overlap_count*100)/min(path1.size()-1,path2.size()-1);
     if(overlap_percentage>=threshold) return true;
     return false;
 }  
 
-struct Label{
-    int node;
-    double cost;
-    int parent;
-    vector<double> similarity;
-    bool removed = false;
-};
+vector<pair<vector<int>, double>> Graph::s_to_allnodes_shortestpaths(int source){
+    vector<pair<vector<int>,double>> result;
+    result.resize(V);
+    vector<double> dist(V, numeric_limits<double>::max());
+    vector<int> prev(V, -1);
+    vector<bool> visited(V, false);
+    dist[source] = 0.0;
+    using PDI = pair<double, int>;
+    priority_queue<PDI, vector<PDI>, greater<PDI>> pq;
+    pq.push({0.0, source});
+    while (!pq.empty()) {
+        int u = pq.top().second;
+        pq.pop();
+        if (visited[u]) continue;
+        visited[u] = true;
 
-struct PQEntry{
-    double cost;
-    int label_id;
-    bool operator>(const PQEntry& other) const {
-        return cost > other.cost;
+        for (const auto& [v, e] : adj[u]) {
+            if (visited[v]) continue;
+            if (e->blocked) continue;
+            double weight = e->len;
+            if (dist[u] + weight < dist[v]) {
+                dist[v] = dist[u] + weight;
+                prev[v] = u;
+                pq.push({dist[v], v});
+            }
+        }
     }
-};
+    for(int destination=0; destination<V; destination++){
+        vector<int> path;
+        if(dist[destination]==numeric_limits<double>::max()){
+            result[destination]={path,-1};
+            continue;
+        }
+        for(int at=destination; at!=-1; at=prev[at]) path.push_back(at);
+        reverse(path.begin(), path.end());
+        result[destination]={path, dist[destination]};
+    }
+    return result;
+}
+
+vector<pair<vector<int>,double>> Graph::allnodes_to_t_shortest_paths(int target){
+    vector<pair<vector<int>,double>> result;
+    result.resize(V);
+
+    vector<vector<pair<int, Edge*>>> adj_rev(V);
+    for (int u = 0; u < V; ++u) {
+        for (const auto &pe : adj[u]) {
+            int v = pe.first;
+            Edge* e = pe.second;
+            adj_rev[v].push_back({u, e});
+        }
+    }
+
+    vector<double> dist(V, numeric_limits<double>::max());
+    vector<int> prev(V, -1);
+    vector<bool> visited(V, false);
+
+    using PDI = pair<double, int>;
+    priority_queue<PDI, vector<PDI>, greater<PDI>> pq;
+    dist[target] = 0.0;
+    pq.push({0.0, target});
+
+    while (!pq.empty()) {
+        int u = pq.top().second;
+        pq.pop();
+        if (visited[u]) continue;
+        visited[u] = true;
+
+        for (const auto& pr : adj_rev[u]) {
+            int v = pr.first;
+            Edge* e = pr.second;
+            if (visited[v]) continue;
+            if (e->blocked) continue;
+            double weight = e->len;
+            if (dist[u] + weight < dist[v]) {
+                dist[v] = dist[u] + weight;
+                prev[v] = u;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+
+    for (int source = 0; source < V; ++source) {
+        vector<int> path;
+        if (dist[source] == numeric_limits<double>::max()) {
+            result[source] = {path, -1};
+            continue;
+        }
+        for (int at = source; at != -1; at = prev[at]) path.push_back(at);
+        result[source] = {path, dist[source]};
+    }
+    return result;
+}
 
 vector<pair<vector<int>, double>> Graph::kShortestPaths_Heuristic(int source, int target, int K, int threshold){
     vector<pair<vector<int>,double>> result;
-    bool possible;
-    auto first_path=shortestPath_minDistance(source,target,{}, {}, possible);
-    if(!possible || first_path.first.empty()) return result;
-    result.push_back(first_path);
-    bool found_new_path= true;
-    while(found_new_path && result.size()<(size_t)K){
-        found_new_path=false;
-        priority_queue<PQEntry, vector<PQEntry>, greater<PQEntry>> pq;
-        vector<Label*> labels;
-        vector<vector<int>> lambda(V);
-        Label* first_label=new Label{source,0.0,-1,{}};
-        labels.push_back(first_label);
-        lambda[source].push_back(0);
-        pq.push({0.0,0});
-        while(!pq.empty()){
-            auto curr=pq.top();
-            pq.pop();
+    vector<pair<vector<int>, double>> all_paths=s_to_allnodes_shortestpaths(source);
+    if(all_paths[target].first.empty()) return result;
+    result.push_back(all_paths[target]);
+    vector<pair<vector<int>, double>> to_t_paths=allnodes_to_t_shortest_paths(target);
 
-            if(labels[curr.label_id]->removed) continue;
-
-            vector<int> path;
-            int label_index=curr.label_id;
-            while(label_index!=-1){
-                Label* l=labels[label_index];
-                path.push_back(l->node);
-                label_index=l->parent;
-            }
-            reverse(path.begin(), path.end());
-
-            Label* curr_label=labels[curr.label_id];
-
-            if(curr_label->node==target){
-                double total_cost=curr_label->cost;
-                found_new_path=true;
-                result.push_back({path,total_cost});
-                break;
-            }
-
-            for(auto& [nbr,e]: adj[curr_label->node]){
-                if(nbr==source) continue;
-                
-                double new_cost=curr_label->cost + e->len;
-                vector<int> new_path=path;
-                new_path.push_back(nbr);
-                Label* new_label=new Label{nbr,new_cost,curr.label_id,{}};
-
-                bool is_overlapping=false;
-                for(auto& existing_path_pair: result){
-                    int overlap_percentage=0;
-                    is_overlapping = isOverlapping(new_path, existing_path_pair.first, threshold, overlap_percentage);
-                    new_label->similarity.push_back((double)overlap_percentage);
-                    if(is_overlapping){
-                        break;
-                    }
-                }
-                if(is_overlapping) continue;
-
-                bool dominated=false;
-
-                for(int label_id: lambda[nbr]){
-                    if(labels[label_id]->cost <= new_cost){
-                        bool found_better=true;
-                        for(size_t i=0; i<new_label->similarity.size(); i++){
-                            if(new_label->similarity[i] < labels[label_id]->similarity[i]){
-                                found_better=false;
-                                break;
-                            }
-                        }
-                        if(found_better){
-                            dominated=true;
-                            break;
-                        }
-                    }
-                        
-                }
-                if(dominated) continue;
-
-                vector<int> to_remove;
-                for(size_t i=0; i<lambda[nbr].size(); i++){
-                    int label_id=lambda[nbr][i];
-                    if(labels[label_id]->cost >= new_cost){
-                        bool found_worse=true;
-                        for(size_t j=0; j<new_label->similarity.size(); j++){
-                            if(new_label->similarity[j] > labels[label_id]->similarity[j]){
-                                found_worse=false;
-                                break;
-                            }
-                        }
-                        if(found_worse){
-                            to_remove.push_back(i);
-                        }
-                    }
-                }
-                for(int i=to_remove.size()-1; i>=0; i--){
-                    labels[lambda[nbr][to_remove[i]]]->removed=true;
-                    lambda[nbr].erase(lambda[nbr].begin()+to_remove[i]);
-                }
-                labels.push_back(new_label);
-                lambda[nbr].push_back((int)labels.size()-1);
-                pq.push({new_cost, (int)labels.size()-1});
-            }
-            labels[curr.label_id]->removed=true;
-        }
-        for(auto l: labels) delete l;
+    unordered_map<int, bool> in_result;
+    for(int i=0; i<V; i++) in_result[i]=false;
+    for(size_t i=0; i<result[0].first.size(); i++) in_result[result[0].first[i]]=true;
+    vector<pair<double,int>> candidates;
+    for(int i=0; i<V; i++){
+        if(all_paths[i].first.empty()) continue;
+        if(to_t_paths[i].first.empty()) continue;
+        if(in_result[i]) continue;
+        if(i==source || i==target) continue;
+        candidates.push_back({all_paths[i].second + to_t_paths[i].second, i});
     }
-    
+    sort(candidates.begin(), candidates.end());
+
+    for(int theta=threshold; theta<=80; theta+=min(5,theta/5)){
+
+        for(size_t i=0;i<candidates.size() && result.size()<(size_t)K;i++){
+            auto curr=candidates[i];
+            if(in_result.find(curr.second)!=in_result.end() && in_result[curr.second]) continue;
+            if(i==0) continue; // already added shortest path
+            if(curr.second==source || curr.second==target) continue;
+            int intermediate=curr.second;
+            vector<int> path;
+            auto& path1=all_paths[intermediate].first;
+            auto& path2=to_t_paths[intermediate].first;
+            for(size_t i=0; i<path1.size(); i++) path.push_back(path1[i]);
+            for(size_t i=1; i<path2.size(); i++) path.push_back(path2[i]);
+            double total_cost=curr.first;
+
+            bool is_overlapping=false;
+            for(size_t i=0; i<result.size(); i++){
+                int overlap_count=0;
+                if(isOverlapping(path, result[i].first, theta, overlap_count)){
+                    is_overlapping=true;
+                    break;
+                }
+            }
+            if(is_overlapping) continue;
+            in_result[intermediate]=true;
+            result.push_back({path, total_cost});
+        }
+        if(result.size()>=(size_t)K) break;
+    }
+
+    if(result.size()<(size_t)K){
+        for(size_t i=0; i<candidates.size() && result.size()<(size_t)K; i++){
+            int intermediate=candidates[i].second;
+            vector<int> path;
+            auto& path1=all_paths[intermediate].first;
+            auto& path2=to_t_paths[intermediate].first;
+            for(size_t j=0; j<path1.size(); j++) path.push_back(path1[j]);
+            for(size_t j=1; j<path2.size(); j++) path.push_back(path2[j]);
+            double total_cost=candidates[i].first;
+            result.push_back({path, total_cost});
+        }
+    }
     return result;
 }
