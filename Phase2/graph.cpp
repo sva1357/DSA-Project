@@ -488,7 +488,7 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
 //     return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
 // }
 
-double Graph::approxShortestDistance(
+double Graph::approxShortestPath(
         int source,
         int destination,
         double time_budget_ms,
