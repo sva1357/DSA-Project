@@ -12,6 +12,9 @@ using namespace std;
 #elif defined(PHASE2)
     #include "graph.hpp"
     #include "QueryProcessor.hpp"
+#elif defined(PHASE3)
+    #include "graph.hpp"
+    #include "QueryProcessor.hpp"
 #else
     #error "No phase defined"
 #endif
@@ -42,6 +45,9 @@ json processQuery(const json &q, Graph &g){
         else if(type=="approx_shortest_path"){
             return approx_shortest_path(q,g);
         }
+    #elif defined(PHASE3)
+            return delivery_route_optimization(q,g);
+        
     #endif
 
     return json{{"error", "Unknown query type"}, {"query_type", type}};
