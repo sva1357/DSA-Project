@@ -80,6 +80,8 @@ public:
 
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic(int source, int target, int K, int threshold);
 
+    vector<pair<vector<int>, double>> kShortestPaths_Heuristic_svp(int source, int target, int K, int threshold);
+
 };
 
 

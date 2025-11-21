@@ -93,6 +93,8 @@ public:
 
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic(int source, int target, int K, int threshold);
 
+    vector<pair<vector<int>, double>> kShortestPaths_Heuristic_svp(int source, int target, int K, int threshold);
+
     // ---------- Delivery-specific methods ----------
     // Iterative clustering (k-means style)
     vector<vector<Order>> clusterOrdersIterative(vector<Order> orders, int n_riders, int max_iters = 10);

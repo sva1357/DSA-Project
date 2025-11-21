@@ -25,7 +25,7 @@ json k_shortest_paths_heuristic(const json &q, Graph &g){
     int K = q["k"];
     int threshold = q["overlap_threshold"];
     json output;
-    vector<pair<vector<int>, double>> result = g.kShortestPaths_Heuristic(source, target, K, threshold);
+    vector<pair<vector<int>, double>> result = g.kShortestPaths_Heuristic_svp(source, target, K, threshold);
     output["id"] = id;
     output["paths"] = json::array();
     for (const auto& [path, cost] : result) {
