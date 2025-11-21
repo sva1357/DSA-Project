@@ -51,7 +51,7 @@ json approx_shortest_path(const json &q, Graph &g){
         double start_time = std::chrono::duration<double, std::milli>(
             std::chrono::high_resolution_clock::now().time_since_epoch()
         ).count();
-        double approx_distance = g.approxShortestDistance(source, destination, time_for_query_ms, acceptable_error_pct);
+        double approx_distance = g.approxShortestPath(source, destination, time_for_query_ms, acceptable_error_pct);
         double end_time = std::chrono::duration<double, std::milli>(
             std::chrono::high_resolution_clock::now().time_since_epoch()
         ).count();
