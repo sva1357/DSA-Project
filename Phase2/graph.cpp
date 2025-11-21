@@ -500,75 +500,67 @@ double Graph::approxShortestDistance(
     priority_queue<QItem, vector<QItem>, greater<QItem>> pq;
 
     vector<double> dist(V, numeric_limits<double>::infinity());
-    dist[source] = 0;
+    dist[source] = 0.0;
 
     auto heuristic = [&](int u, int v) {
         return euclideanDistance(u, v);
     };
 
-    double best_upper_bound = 1e18;   // ← always keep an upper bound
-
+    double best_upper_bound = 1e18; // conservative fallback
     pq.push({heuristic(source, destination), source});
 
-    int it = 0;
+    int iteration = 0;
+
+    // Dynamic interval: smaller for small graphs, larger for big graphs
+    int check_interval = max(1, V / 1000); // at least every iteration, more for huge graphs
 
     while (!pq.empty()) {
+        iteration++;
 
-        // Check time every 1024 iterations (fast!)
-        if ((it++ & 1023) == 0) {
+        // Time check at dynamic intervals
+        if ((iteration % check_interval) == 0) {
             double elapsed = chrono::duration<double, milli>(
-                                chrono::high_resolution_clock::now()
-                                - start_time).count();
+                                 chrono::high_resolution_clock::now() - start_time
+                             ).count();
             if (elapsed > time_budget_ms) {
-
+                // Time limit exceeded -> return approximate distance
                 double best_real = dist[destination];
-
                 if (best_real < 1e17) {
-                    // Return improved approx using actual explored g-values
                     return best_real * (1.0 + acceptable_error_pct / 100.0);
                 }
-
-                // Otherwise fallback to heuristic bound
-                return best_upper_bound *
-                    (1.0 + acceptable_error_pct / 100.0);
+                return best_upper_bound * (1.0 + acceptable_error_pct / 100.0);
             }
-
         }
 
         auto [f, u] = pq.top();
         pq.pop();
 
-        // Update best known upper bound
-        // f = g + h is always ≤ true dist
         if (f < best_upper_bound) best_upper_bound = f;
 
-        // Early exact success
         if (u == destination) {
             return dist[u]; // exact shortest path reached
         }
 
-        // Explore neighbors
         for (auto &nbr : adj[u]) {
             int v = nbr.first;
             double w = nbr.second->len;
-            double nd = dist[u] + w;
 
-            if (nd < dist[v]) {
-                dist[v] = nd;
+            double new_dist = dist[u] + w;
+            if (new_dist < dist[v]) {
+                dist[v] = new_dist;
                 double h = heuristic(v, destination);
-                double nf = nd + h;
+                double nf = new_dist + h;
 
                 pq.push({nf, v});
 
-                // update conservative upper bound
                 if (nf < best_upper_bound)
                     best_upper_bound = nf;
             }
         }
     }
 
-    // If no path exists
-    return -1;
+    // No path exists
+    return -1.0;
 }
 
 bool Graph::isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_percentage){
