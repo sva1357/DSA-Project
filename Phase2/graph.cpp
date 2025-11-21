@@ -489,78 +489,99 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
 // }
 
 double Graph::approxShortestPath(
-        int source,
-        int destination,
-        double time_budget_ms,
-        double acceptable_error_pct)
+    int source,
+    int destination,
+    double time_budget_ms,
+    double acceptable_error_pct)
 {
-    auto start_time = chrono::high_resolution_clock::now();
+    
+    using Clock = chrono::high_resolution_clock;
+    auto start_time = Clock::now();
 
     using QItem = pair<double, int>; // (f = g + h, node)
-    priority_queue<QItem, vector<QItem>, greater<QItem>> pq;
+    priority_queue<QItem, vector<QItem>, greater<QItem>> pq; // Min-heap on f = g + h
 
-    vector<double> dist(V, numeric_limits<double>::infinity());
+    const double INF = numeric_limits<double>::infinity();
+    vector<double> dist(V, INF); // g-values: shortest distance from source to node
     dist[source] = 0.0;
 
+    // Admissible heuristic: straight-line distance
     auto heuristic = [&](int u, int v) {
-        return euclideanDistance(u, v);
+        return euclideanDistance(u, v); // must never overestimate true distance
     };
 
-    double best_upper_bound = 1e18; // conservative fallback
-    pq.push({heuristic(source, destination), source});
+    // Push source node into the priority queue
+    pq.push({dist[source] + heuristic(source, destination), source});
 
+    double best_upper_bound = INF; // best complete path distance found
     int iteration = 0;
+    int check_interval = max(1, V / 1000); // how often to check time (tunable)
 
-    // Dynamic interval: smaller for small graphs, larger for big graphs
-    int check_interval = max(1, V / 1000); // at least every iteration, more for huge graphs
+    const double eps_factor = 1.0 + acceptable_error_pct / 100.0; // allowed approximation factor
 
+    
     while (!pq.empty()) {
         iteration++;
 
-        // Time check at dynamic intervals
-        if ((iteration % check_interval) == 0) {
-            double elapsed = chrono::duration<double, milli>(
-                                 chrono::high_resolution_clock::now() - start_time
-                             ).count();
+        // --- Periodic time check ---
+        if (iteration % check_interval == 0) {
+            double elapsed = chrono::duration<double, milli>(Clock::now() - start_time).count();
             if (elapsed > time_budget_ms) {
-                // Time limit exceeded -> return approximate distance
-                double best_real = dist[destination];
-                if (best_real < 1e17) {
-                    return best_real * (1.0 + acceptable_error_pct / 100.0);
-                }
-                return best_upper_bound * (1.0 + acceptable_error_pct / 100.0);
+                // Time budget exhausted
+                if (best_upper_bound < INF)
+                    return best_upper_bound; // return best solution found so far
+                return -1.0; // no path found within time
             }
         }
 
+        // --- Check approximation stopping condition ---
+        double lower_bound = pq.top().first; // optimistic estimate of remaining path
+        if (best_upper_bound < INF && best_upper_bound <= eps_factor * lower_bound) {
+            // Current best solution is within acceptable error → stop early
+            return best_upper_bound;
+        }
+
+        // --- Expand next node ---
         auto [f, u] = pq.top();
         pq.pop();
 
-        if (f < best_upper_bound) best_upper_bound = f;
+        // Skip if this node's f-value cannot improve best solution
+        if (best_upper_bound < INF && f >= best_upper_bound) continue;
 
+        // Check if we reached the destination
         if (u == destination) {
-            return dist[u]; // exact shortest path reached
+            if (dist[u] < best_upper_bound) {
+                best_upper_bound = dist[u]; // update best known complete path
+            }
+            continue; // continue search in case a better path exists
         }
 
+        // Defensive: skip nodes that were never properly reached
+        if (dist[u] == INF) continue;
+
+        // --- Expand neighbors ---
         for (auto &nbr : adj[u]) {
             int v = nbr.first;
             double w = nbr.second->len;
 
-            double new_dist = dist[u] + w;
-            if (new_dist < dist[v]) {
-                dist[v] = new_dist;
+            double new_g = dist[u] + w; // tentative g-value for neighbor
+            if (new_g < dist[v]) {
+                dist[v] = new_g;
                 double h = heuristic(v, destination);
-                double nf = new_dist + h;
+                double new_f = new_g + h;
 
-                pq.push({nf, v});
+                // Optional pruning: skip if cannot improve current best solution
+                if (best_upper_bound < INF && new_f >= best_upper_bound) continue;
 
-                if (nf < best_upper_bound)
-                    best_upper_bound = nf;
+                pq.push({new_f, v});
             }
         }
     }
 
-    // No path exists
-    return -1.0;
+    
+    if (best_upper_bound < INF)
+        return best_upper_bound; // best complete path found
+    return -1.0; // destination unreachable
 }
 
 bool Graph::isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_count){
