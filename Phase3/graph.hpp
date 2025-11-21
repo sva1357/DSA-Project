@@ -104,4 +104,7 @@ public:
     static double euclidean(const DeliveryNode &a, const DeliveryNode &b) {
         return sqrt((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
     }
+
+    vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
+
 };
