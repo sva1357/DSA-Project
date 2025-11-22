@@ -123,7 +123,7 @@ pair<vector<int>, double> Graph::shortestPath_minTime(int source, int destinatio
  }
 
 
-vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,int no_agents,vector<int>cluster){
+vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster){
     unordered_set<int> available_pickups;
     unordered_set<int> available_deliveries;
    unordered_map<int, int> pickup_to_delivery;
@@ -219,7 +219,7 @@ pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair
     }
 
     std::unordered_map<int, double> completion_times;
-    if (route.empty()) return {0.0, 0.0};
+    if (route.size() <= 1) return {0.0, 0.0};
     int prev_node = route[0];
 
     for (size_t i = 1; i < route.size(); i++) {
@@ -271,7 +271,7 @@ pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair
             continue;
         }
 
-        vector<int> route = buildGreedyRoute(depot_node, orders, no_agents, cluster);
+        vector<int> route = buildGreedyRoute(depot_node, orders, cluster);
         auto [sum_c, max_c] = computetime(route, orders);
 
         total_time += sum_c;
