@@ -59,6 +59,7 @@ public:
     double euclideanDistance(int u, int v);
 
     // ---------- Existing shortest path functions ----------
+    //----------PHASE-1-----------------//
     pair<vector<int>,double> shortestPath_minDistance(int source, int destination,
                                                                 vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool& possible);
     pair<vector<int>, double> shortestPath_minTime(int source, int destination,vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool &possible);
@@ -68,6 +69,7 @@ public:
     
     vector<int> knn(string poi_type,double query_lat,double query_lon,int K,string metric);
     
+    //--------PHASE-2----------------------//
     vector<pair<vector<int>, double>> kShortestPaths_exact(int source, int target, int K) ;
     double approxShortestPath(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct);
@@ -81,11 +83,25 @@ public:
 
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic_svp(int source, int target, int K, int threshold);
 
-    vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>> orders);
 
+    //----------PHASE-3---------------//
+    //---------HEURISTIC-SAMPLE-------//
+    vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>> orders);
+      vector<pair<vector<int>,vector<int>>> delivery_route_near(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
+
+    //--------COMMON FUNCTIONS---------//
    vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster) ;
    pair<double,double> computetime(vector<int> route, unordered_map<int,pair<int,int>> orders);
  
+   //---------HEURISTIC-MAIN--------------//
     vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
+    vector<vector<int>> kmeansPlusPlusClusters(int no_agents, unordered_map<int, pair<int,int>> orders);
+    vector<int> shiftNode(const vector<int>& route) ;
+    bool validPickupDelivery(const vector<int>& route,unordered_map<int,pair<int,int>>& orders);
+    vector<int> twoPointSwap(const vector<int>& route) ;
+
+
+
+
 
 };
