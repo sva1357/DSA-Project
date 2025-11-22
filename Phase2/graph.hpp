@@ -45,6 +45,10 @@ class Graph{
     vector<vector<pair<int,Edge*>>> adj; 
     int V;
 
+    vector<vector<double>> landmarkDist;
+    vector<int> landmarks;
+
+
 public:
     Graph();
     void addNode(int id, double lat, double lon, vector<string> pois);
@@ -58,6 +62,9 @@ public:
                         vector<double> new_speed_profile, bool change_length, double new_length, bool change_road_type, string new_road_type);
 
     double euclideanDistance(int u, int v);
+
+    void precomputeLandmarks(const vector<int>& landmark_nodes);
+    double altHeuristic(int u, int t);
     
     pair<vector<int>,double> shortestPath_minDistance(int source, int destination,
                                                                 vector<int> forbidden_nodes, vector<string> forbidden_road_types, bool& possible);
@@ -79,10 +86,7 @@ public:
     vector<pair<vector<int>, double>> allnodes_to_t_shortest_paths(int target);
 
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic(int source, int target, int K, int threshold);
-
     vector<pair<vector<int>, double>> kShortestPaths_Heuristic_svp(int source, int target, int K, int threshold);
 
+
 };
-
-
-

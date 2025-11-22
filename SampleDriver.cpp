@@ -3,6 +3,7 @@
 #include<chrono>
 #include <string>
 #include <nlohmann/json.hpp>
+#include "algorithm"
 using json = nlohmann::json;
 using namespace std;
 
@@ -76,6 +77,7 @@ int main(int argc, char* argv[]){
     auto meta=j["meta"];
 
     Graph g;
+    int V=0;
     for(auto &n: j["nodes"]){
         int id=n["id"];
         double lat=n["lat"];
@@ -83,6 +85,7 @@ int main(int argc, char* argv[]){
         vector<string> pois;
         for(auto &p: n["pois"]) pois.push_back(p);
         g.addNode(id,lat,lon,pois);
+        V++;
     }
     for(auto &e: j["edges"]){
         int id=e["id"];
@@ -99,6 +102,16 @@ int main(int argc, char* argv[]){
         }
         g.addEdge(id, u, v, length, avg_time, speed_profile, oneway, road_type);
     }
+
+    #if defined(PHASE2)
+    int k = min(16, V);
+    vector<int> landmark_nodes;
+    for (int i = 0; i < k; ++i) {
+        landmark_nodes.push_back(i * (V / k));
+    }
+    g.precomputeLandmarks(landmark_nodes);
+    #endif
+
     ifstream fin2(argv[2], ios::in | ios::binary);
     string buffer2((istreambuf_iterator<char>(fin2)), istreambuf_iterator<char>());
     json q = json::parse(buffer2, nullptr, false);

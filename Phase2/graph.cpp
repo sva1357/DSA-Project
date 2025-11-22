@@ -39,13 +39,53 @@ void Graph::modifyEdge(int id, bool change_time, double new_avg_time, bool chang
     e->blocked=false;
 }
 
-double Graph::euclideanDistance(int u, int v){
-    double lat1 = nodes[u]->lat;
-    double lon1 = nodes[u]->lon;
-    double lat2 = nodes[v]->lat;
-    double lon2 = nodes[v]->lon;
-    return sqrt((lat1 - lat2) * (lat1 - lat2) + (lon1 - lon2) * (lon1 - lon2));
+double Graph::euclideanDistance(int u, int v) {
+    double lat1 = nodes[u]->lat * M_PI / 180.0;
+    double lon1 = nodes[u]->lon * M_PI / 180.0;
+    double lat2 = nodes[v]->lat * M_PI / 180.0;
+    double lon2 = nodes[v]->lon * M_PI / 180.0;
+
+    double dlat = lat2 - lat1;
+    double dlon = lon2 - lon1;
+
+    double a = sin(dlat/2)*sin(dlat/2) +
+               cos(lat1)*cos(lat2)*sin(dlon/2)*sin(dlon/2);
+    double c = 2 * atan2(sqrt(a), sqrt(1.0 - a));
+    double R = 6371000.0;
+
+    return R * c;
 }
+
+void Graph::precomputeLandmarks(const vector<int>& landmark_nodes) {
+    landmarks = landmark_nodes;
+    landmarkDist.assign(landmarks.size(), vector<double>(V, numeric_limits<double>::infinity()));
+
+    for (size_t i = 0; i < landmarks.size(); ++i) {
+        int L = landmarks[i];
+        // run Dijkstra from landmark L
+        auto dist_from_L = shortestPath_allDistances(L); 
+        vector<double> dist_from_L_only(V, -1);
+        for (const auto& [d, node] : dist_from_L) {
+            dist_from_L_only[node] = d;
+        }
+        landmarkDist[i] = dist_from_L_only;
+    }
+}
+
+double Graph::altHeuristic(int u, int t) {
+    double h = 0.0;
+    for (size_t i = 0; i < landmarks.size(); ++i) {
+        double du = landmarkDist[i][u];
+        double dt = landmarkDist[i][t];
+        if (du < numeric_limits<double>::infinity() &&
+            dt < numeric_limits<double>::infinity()) {
+            double cand = fabs(dt - du);
+            if (cand > h) h = cand;
+        }
+    }
+    return h; // admissible lower bound on dist(u, t)
+}
+
 
 pair<vector<int>,double> Graph::shortestPath_minDistance(int source, int destination, vector<int> forbidden_nodes,
                                                                 vector<string> forbidden_road_types, bool& possible){
@@ -154,72 +194,6 @@ pair<vector<int>, double> Graph::shortestPath_minTime(int source, int destinatio
     return {path, dist[destination]};
 }
 
-// pair<vector<int>, double> Graph::shortestPath_minTime_withSpeedProfile(
-//     int source, int destination,
-//     int start_time, vector<int> forbidden_nodes,
-//     vector<string> forbidden_road_types, bool &possible)
-// {
-//     vector<double> dist(V, numeric_limits<double>::max());
-//     vector<int> prev(V, -1);
-
-//     unordered_map<int, bool> forbidden_node_map;
-//     for(int fn: forbidden_nodes) forbidden_node_map[fn] = true;
-
-//     unordered_map<string, bool> forbidden_road_map;
-//     for(const string &frt: forbidden_road_types) forbidden_road_map[frt] = true;
-
-//     if(forbidden_node_map.count(source) || forbidden_node_map.count(destination)){
-//         possible = false;
-//         return {{}, -1};
-//     }
-
-//     dist[source] = start_time;
-//     using PDI = pair<double,int>;
-//     priority_queue<PDI, vector<PDI>, greater<PDI>> pq;
-//     pq.push({start_time, source});
-
-//     while(!pq.empty()){
-//         auto [curr_time, u] = pq.top(); pq.pop();
-
-//         if(curr_time > dist[u]) continue;  //  ignore outdated queue entries
-
-//         if(u == destination) break;
-
-//         for(const auto &[v, e] : adj[u]){
-
-//             if(forbidden_node_map.count(v)) continue;
-//             if(e->blocked) continue;
-//             if(forbidden_road_map.count(e->road_type)) continue;
-//             if(e->speed_profile.empty()) continue; //  avoid mod 0
-
-//             int t_index = (int(curr_time) % e->speed_profile.size());
-//             double speed = e->speed_profile[t_index];
-//             if(speed <= 0) continue;
-
-//             double travel_time = e->len / speed;
-//             double new_time = curr_time + travel_time;
-
-//             if(new_time < dist[v]){
-//                 dist[v] = new_time;
-//                 prev[v] = u;
-//                 pq.push({new_time, v});
-//             }
-//         }
-//     }
-
-//     if(dist[destination] == numeric_limits<double>::max()){
-//         possible = false;
-//         return {{}, -1};
-//     }
-
-//     vector<int> path;
-//     for(int at = destination; at != -1; at = prev[at]) path.push_back(at);
-//     reverse(path.begin(), path.end());
-
-//     possible = true;
-//     return {path, dist[destination] - start_time}; // spent time
-// }
-
 vector<pair<double,int>> Graph::shortestPath_allDistances(int source){
     vector<double> dist(V, numeric_limits<double>::max());
     vector<bool> visited(V, false);
@@ -248,7 +222,10 @@ vector<pair<double,int>> Graph::shortestPath_allDistances(int source){
 
     vector<pair<double,int>> allDistances;
     for (int i = 0; i < V; ++i) {
-        allDistances.push_back({dist[i], i});
+        if(dist[i]==numeric_limits<double>::max()) 
+            allDistances.push_back({-1, i});
+        else
+            allDistances.push_back({dist[i], i});
     }
     return allDistances;
 }
@@ -310,7 +287,6 @@ vector<int> Graph::knn(string poi_type,double query_lat,double query_lon,int K,s
 }
 
 vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int target, int K) {
-   
 
     bool possible;
     vector<pair<vector<int>, double>> result;
@@ -324,7 +300,6 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
     for (int k = 1; k < K; ++k) {
 
         const auto &prevPath = result.back().first;
-
 
         for (size_t i = 0; i + 1 < prevPath.size(); ++i) {
 
@@ -438,53 +413,6 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_exact(int source, int ta
 }
 
 
-// double Graph::approxShortestDistance(int source, int destination, 
-//                                      double time_budget_ms, double acceptable_error_pct)
-// {
-//     const double INF = numeric_limits<double>::infinity();
-//     vector<double> dist(V, INF);
-
-//     priority_queue<pair<double,int>, vector<pair<double,int>>, greater<pair<double,int>>> pq;
-
-//     dist[source] = 0.0;
-//     pq.push({0.0, source});
-
-//     auto start_time = chrono::high_resolution_clock::now();
-
-//     while(!pq.empty()) {
-//         auto now = chrono::high_resolution_clock::now();
-//         double elapsed_ms = chrono::duration<double, milli>(now - start_time).count();
-
-//         // Time cutoff: return best known so far
-//         if(elapsed_ms > time_budget_ms) {
-//             return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
-//         }
-
-//         auto [d, u] = pq.top();
-//         pq.pop();
-
-//         if(d > dist[u]) continue;
-//         if(u == destination) break;
-
-//         for(auto &nbr : adj[u]) {
-//             int v = nbr.first;
-//             Edge* e = nbr.second;
-//             if(e->blocked) continue;
-
-//             double w = e->len; 
-
-//             if(dist[u] + w < dist[v]) {
-//                 dist[v] = dist[u] + w;
-//                 pq.push({dist[v], v});
-//             }
-//         }
-//     }
-
-//     if(dist[destination] == INF) return -1.0;
-
-//     return dist[destination] * (1.0 + acceptable_error_pct / 100.0);
-// }
-
 double Graph::approxShortestPath(
     int source,
     int destination,
@@ -495,83 +423,70 @@ double Graph::approxShortestPath(
     using Clock = chrono::high_resolution_clock;
     auto start_time = Clock::now();
 
-    using QItem = pair<double, int>; // (f = g + h, node)
-    priority_queue<QItem, vector<QItem>, greater<QItem>> pq; // Min-heap on f = g + h
+    using QItem = pair<double, int>; 
+    priority_queue<QItem, vector<QItem>, greater<QItem>> pq; 
 
     const double INF = numeric_limits<double>::infinity();
-    vector<double> dist(V, INF); // g-values: shortest distance from source to node
+    vector<double> dist(V, INF); 
     dist[source] = 0.0;
-
-    // Admissible heuristic: straight-line distance
+    
     auto heuristic = [&](int u, int v) {
-        return euclideanDistance(u, v); // must never overestimate true distance
+        return  altHeuristic(u,v); 
     };
 
-    // Push source node into the priority queue
     pq.push({dist[source] + heuristic(source, destination), source});
 
-    double best_upper_bound = INF; // best complete path distance found
+    double best_upper_bound = INF; 
     int iteration = 0;
-    int check_interval = max(1, V / 1000); // how often to check time (tunable)
+    int check_interval = max(1, V / 1000); 
 
-    const double eps_factor = 1.0 + acceptable_error_pct / 100.0; // allowed approximation factor
+    const double eps_factor = 1.0 + (acceptable_error_pct) / 100.0;
 
     
     while (!pq.empty()) {
         iteration++;
 
-        // --- Periodic time check ---
         if (iteration % check_interval == 0) {
             double elapsed = chrono::duration<double, milli>(Clock::now() - start_time).count();
             if (elapsed > time_budget_ms) {
-                // Time budget exhausted
                 if (best_upper_bound < INF)
-                    return best_upper_bound; // return best solution found so far
-                return -1; // no path found within time
+                    return best_upper_bound; 
+                return -1; 
             }
         }
 
-        // --- Check approximation stopping condition ---
-        double lower_bound = pq.top().first; // optimistic estimate of remaining path
+        double lower_bound = pq.top().first; 
         if (best_upper_bound < INF && best_upper_bound <= eps_factor * lower_bound) {
-            // Current best solution is within acceptable error → stop early
             return best_upper_bound;
         }
 
-        // --- Expand next node ---
         auto [f, u] = pq.top();
         pq.pop();
 
-        // Skip if this node's f-value cannot improve best solution
         if (best_upper_bound < INF && f >= best_upper_bound) continue;
 
-        // Check if we reached the destination
         if (u == destination) {
             if (dist[u] < best_upper_bound) {
-                best_upper_bound = dist[u]; // update best known complete path
+                best_upper_bound = dist[u];
             }
-            continue; // continue search in case a better path exists
+            continue;
         }
 
-        // Defensive: skip nodes that were never properly reached
         if (dist[u] == INF) continue;
 
         if (f > dist[u] + heuristic(u, destination) + 1e-9)
-            continue;  // stale entry, we already found a better g[u]
+            continue;
 
-
-        // --- Expand neighbors ---
         for (auto &nbr : adj[u]) {
             int v = nbr.first;
             double w = nbr.second->len;
 
-            double new_g = dist[u] + w; // tentative g-value for neighbor
+            double new_g = dist[u] + w;
             if (new_g < dist[v]) {
                 dist[v] = new_g;
                 double h = heuristic(v, destination);
                 double new_f = new_g + h;
 
-                // Optional pruning: skip if cannot improve current best solution
                 if (best_upper_bound < INF && new_f >= best_upper_bound) continue;
 
                 pq.push({new_f, v});
@@ -581,8 +496,8 @@ double Graph::approxShortestPath(
 
     
     if (best_upper_bound < INF)
-        return best_upper_bound; // best complete path found
-    return -1.0; // destination unreachable
+        return best_upper_bound; 
+    return -1.0;
 }
 
 bool Graph::isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_count){
@@ -703,6 +618,7 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_Heuristic_svp(int source
     if(all_paths[target].first.empty()) return result;
     if(V<450&&edges.size()<750){
         result=kShortestPaths_Heuristic(source, target, K, threshold);
+        cout<<result.size()<<" exact paths found.\n";
     }
     else{
         result.push_back(all_paths[target]);
@@ -768,6 +684,10 @@ vector<pair<vector<int>, double>> Graph::kShortestPaths_Heuristic_svp(int source
             result.push_back({path, total_cost});
         }
     }
+    sort(result.begin(), result.end(),
+         [](const auto &a, const auto &b) {
+             return a.second < b.second;
+         });
     return result;
 }
 
