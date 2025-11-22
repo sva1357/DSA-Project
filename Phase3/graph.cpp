@@ -168,11 +168,9 @@ vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> o
         if ( take_pickup && available_pickups.count(next_node)) {
             available_pickups.erase(next_node);
              available_deliveries.insert(pickup_to_delivery[next_node]);
-        } else {
-             if (available_deliveries.count(next_node)){
+        } else if (available_deliveries.count(next_node)){
                     available_deliveries.erase(next_node);}
-            else{break;}
-        }
+        
         }
 
     return route;
