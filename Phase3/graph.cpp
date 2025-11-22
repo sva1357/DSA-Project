@@ -123,114 +123,70 @@ pair<vector<int>, double> Graph::shortestPath_minTime(int source, int destinatio
  }
 
 
-vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster){
+vector<int> Graph::buildGreedyRoute(int depot, unordered_map<int, pair<int,int>> orders, vector<int> cluster) {
     unordered_set<int> available_pickups;
     unordered_set<int> available_deliveries;
-   unordered_map<int, int> pickup_to_delivery;
-    for (const auto& order_id : cluster) {
-        available_pickups.insert(orders[order_id].first);
-         pickup_to_delivery[orders[order_id].first] = orders[order_id].second;
+    unordered_map<int,int> pickup_to_delivery;
+
+  
+    for (int order_id : cluster) {
+        int p = orders[order_id].first;
+        int d = orders[order_id].second;
+        available_pickups.insert(p);
+        pickup_to_delivery[p] = d;
     }
 
-    std::vector<int> route;
-    int curr = depot;
-    route.push_back(depot);
+    vector<int> full_route;
+    int curr_node = depot;
+    full_route.push_back(depot);
 
-      if (available_pickups.empty()) return route;
+    if (available_pickups.empty()) return full_route;
 
     while (!available_pickups.empty() || !available_deliveries.empty()) {
-        double best_dist = std::numeric_limits<double>::max();
+        double best_time = numeric_limits<double>::max();
         int next_node = -1;
-         bool take_pickup = false;
+        bool take_pickup = false;
+        vector<int> best_path;
 
-        for (int node : available_pickups) {
-            double dist = getShortestPathTravelTime(curr, node);
-            if (dist < best_dist) {
-                best_dist = dist;
-                next_node = node;
+        for (int p : available_pickups) {
+            bool possible = false;
+            auto [path, time] = shortestPath_minTime(curr_node, p, {}, {}, possible);
+            if (possible && time < best_time) {
+                best_time = time;
+                next_node = p;
                 take_pickup = true;
+                best_path = path;
             }
         }
 
-        for (int node : available_deliveries) {
-            double dist = getShortestPathTravelTime(curr, node);
-            if (dist < best_dist) {
-                best_dist = dist;
-                next_node = node;
+        for (int d : available_deliveries) {
+            bool possible = false;
+            auto [path, time] = shortestPath_minTime(curr_node, d, {}, {}, possible);
+            if (possible && time < best_time) {
+                best_time = time;
+                next_node = d;
                 take_pickup = false;
+                best_path = path;
             }
         }
 
-          if (next_node == -1) break;
-         route.push_back(next_node);
-        curr = next_node;
+        if (next_node == -1 || best_path.size() < 2) break;
 
-        if ( take_pickup && available_pickups.count(next_node)) {
+      
+        full_route.insert(full_route.end(), best_path.begin() + 1, best_path.end());
+        curr_node = next_node;
+
+        if (take_pickup) {
             available_pickups.erase(next_node);
-             available_deliveries.insert(pickup_to_delivery[next_node]);
-        } else if (available_deliveries.count(next_node)){
-                    available_deliveries.erase(next_node);}
-        
-        }
-
-    return route;
-  }
-
-double Graph::shortestPath_minTime_fast(int start, int end, bool &possible) {
-    const double INF = std::numeric_limits<double>::max();
-    int n = adj.size();
-
-    std::priority_queue<
-        std::pair<double,int>, 
-        std::vector<std::pair<double,int>>, 
-        std::greater<std::pair<double,int>>
-    > pq;
-
-    std::vector<double> dist(n, INF);
-
-    dist[start] = 0.0;
-    pq.push({0.0, start});
-
-    while (!pq.empty()) {
-        auto [currTime, u] = pq.top();
-        pq.pop();
-
-      
-        if (currTime > dist[u]) continue;
-
-      
-        if (u == end) {
-            possible = true;
-            return currTime;
-        }
-
-     
-        for (auto &[v, edge] : adj[u]) {
-            double newTime = currTime + edge->avg_time;
-            if (newTime < dist[v]) {
-                dist[v] = newTime;
-                pq.push({newTime, v});
-            }
+            available_deliveries.insert(pickup_to_delivery[next_node]);
+        } else {
+            available_deliveries.erase(next_node);
         }
     }
 
-    possible = false;
-    return INF;
+    return full_route;
 }
 
-
-
-double Graph::getShortestPathTravelTime(int start, int end) {
-    if (start == end) return 0.0;
-
-    bool possible = false;
-    double t = shortestPath_minTime_fast(start, end, possible);
-
-    if (!possible) 
-        return std::numeric_limits<double>::max();
-
-    return t;
-}
 
     
 pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair<int,int>> orders){
@@ -243,22 +199,27 @@ pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair
 
     std::unordered_map<int, double> completion_times;
     if (route.size() <= 1) return {0.0, 0.0};
-    int prev_node = route[0];
+    int u = route[0];
 
     for (size_t i = 1; i < route.size(); i++) {
-        int curr_node = route[i];
-        double dt = getShortestPathTravelTime(prev_node, curr_node);
-         if (!isfinite(dt)) {
-                return {numeric_limits<double>::infinity(), numeric_limits<double>::infinity()};}
-            
-        current_time += dt;
+          int v = route[i];
 
-        if (deliveryNodeToOrder.count(curr_node)) {
-            int order_id = deliveryNodeToOrder[curr_node];
+        bool edge_found = false;
+        for (auto& [adj_node, edge] : adj[u]) {
+            if (adj_node == v) {
+                current_time += edge->avg_time;
+                edge_found = true;
+                break;
+            }
+        }
+        if (!edge_found) return {numeric_limits<double>::infinity(), numeric_limits<double>::infinity()};
+
+        if (deliveryNodeToOrder.count(v)) {
+            int order_id = deliveryNodeToOrder[v];
             completion_times[order_id] = current_time;
         }
 
-        prev_node = curr_node;
+        u = v;
     }
 
     double sum_completion = 0.0, max_completion = 0.0;

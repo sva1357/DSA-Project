@@ -85,8 +85,7 @@ public:
 
    vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster) ;
    pair<double,double> computetime(vector<int> route, unordered_map<int,pair<int,int>> orders);
-   double getShortestPathTravelTime(int start, int end);
-   double shortestPath_minTime_fast(int start, int end, bool &possible);
+ 
     vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
 
 };
