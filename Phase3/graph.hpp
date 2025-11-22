@@ -46,6 +46,7 @@ class Graph{
     unordered_map<int,Edge*> edges;
     vector<vector<pair<int,Edge*>>> adj; 
     int V;
+    vector<vector<pair<int,Edge*>>> adj_matrix;
 
 public:
     Graph();
@@ -89,14 +90,13 @@ public:
     //----------PHASE-3---------------//
     //---------HEURISTIC-SAMPLE-------//
      vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>>& orders);
-
-   vector<int> buildGreedyRoute_1(int depot,unordered_map<int,pair<int,int>>& orders,vector<int>&cluster, double& sum_c, double& max_c); ;
  
     vector<pair<vector<int>,vector<int>>> delivery_route_near(int no_agents, int depot_node, unordered_map<int,pair<int,int>>& orders, double& total_time);
 
     //--------COMMON FUNCTIONS---------//
-   vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster) ;
-   pair<double,double> computetime(vector<int> route, unordered_map<int,pair<int,int>> orders);
+   
+   pair<double,double> computetime(vector<int> route, unordered_map<int,pair<int,int>> orders,vector<int> order_ids);
+   vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>>& orders,vector<int>&cluster, double& sum_c, double& max_c); 
  
    //---------HEURISTIC-MAIN--------------//
     vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);

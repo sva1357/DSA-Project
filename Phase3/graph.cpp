@@ -13,10 +13,16 @@ void Graph::addNode(int id, double lat, double lon, vector<string> pois){
 void Graph::addEdge(int id, int u, int v, double length, double avg_time, vector<double> speed_profile,
                 bool oneway, string road_type){
     Edge* e=new Edge(id,u,v,length,avg_time,speed_profile,oneway,road_type);
+    if(adj_matrix.size()<(size_t)V){
+        adj_matrix.resize(V);
+        for(int i=0;i<V;i++) adj_matrix[i].resize(V);
+    }
     edges[id]=e;
     adj[u].push_back({v,e});
+    adj_matrix[u][v]={v,e};
     if(!oneway){
         adj[v].push_back({u,e});
+        adj_matrix[v][u]={u,e};
     }
 }
 
@@ -250,17 +256,15 @@ vector<vector<int>> Graph::nearestSeedClustering(int no_agents, unordered_map<in
 }
 
 
-vector<int> Graph::buildGreedyRoute_1(int depot, unordered_map<int, pair<int,int>>& orders, vector<int>& cluster, double& sum_c, double& max_c) {
-    unordered_set<int> available_pickups;
+vector<int> Graph::buildGreedyRoute(int depot, unordered_map<int, pair<int,int>>& orders, vector<int>& cluster, double& sum_c, double& max_c) {
+    unordered_map<int,vector<int>> available_pickups;
     unordered_map<int,int> available_deliveries;
-    unordered_map<int,int> pickup_to_delivery;
 
   
     for (int order_id : cluster) {
         int p = orders[order_id].first;
         int d = orders[order_id].second;
-        available_pickups.insert(p);
-        pickup_to_delivery[p] = d;
+        available_pickups[p].push_back(d);
     }
 
     vector<int> full_route;
@@ -277,7 +281,7 @@ vector<int> Graph::buildGreedyRoute_1(int depot, unordered_map<int, pair<int,int
 
         auto allTimes = shortestPath_allTimes(curr_node);
         
-        for (int p : available_pickups) {
+        for (auto [p,x] : available_pickups) {
             bool possible = false;
             auto [path, time] = allTimes[p];
             if(time!=-1) possible=true;
@@ -309,13 +313,10 @@ vector<int> Graph::buildGreedyRoute_1(int depot, unordered_map<int, pair<int,int
         current_time += best_time;
 
         if (take_pickup) {
-            available_pickups.erase(next_node);
-            int delivery_node = pickup_to_delivery[next_node];
-            if(available_deliveries.find(delivery_node) == available_deliveries.end()) {
-                available_deliveries[delivery_node] = 1;
-            } else {
-                available_deliveries[delivery_node]++;
+            for(auto d : available_pickups[next_node]){
+                available_deliveries[d]++;
             }
+            available_pickups.erase(next_node);
         } else {
             sum_c += current_time* available_deliveries[next_node];
             if (current_time > max_c) max_c = current_time;
@@ -348,7 +349,10 @@ vector<pair<vector<int>,vector<int>>> Graph::delivery_route_near(int no_agents, 
         }
         double sum_c = 0.0, max_c = 0.0;
 
-        vector<int> route = buildGreedyRoute_1(depot_node, orders, cluster, sum_c, max_c);
+        vector<int> route = buildGreedyRoute(depot_node, orders, cluster, sum_c, max_c);
+        auto res = computetime(route, orders, cluster);
+        sum_c = res.first;
+        max_c = res.second;
 
         total_time += sum_c;
         result.push_back({route, cluster});
@@ -357,112 +361,47 @@ vector<pair<vector<int>,vector<int>>> Graph::delivery_route_near(int no_agents, 
     return result;
 }
     
-pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair<int,int>> orders){
-         double current_time = 0.0;
+pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair<int,int>> orders,vector<int> order_ids){
+     double current_time = 0.0;
 
-    std::unordered_map<int, int> deliveryNodeToOrder;
-    for (const auto& kv : orders) {
-        deliveryNodeToOrder[kv.second.second] = kv.first;
+    unordered_map<int,vector<int>> pickup_nodes;
+    for(int oid : order_ids){
+        int p = orders[oid].first;
+        pickup_nodes[p].push_back(orders[oid].second);
     }
+    unordered_map<int,int> delivery_nodes;
 
-    std::unordered_map<int, double> completion_times;
+    double sum_completion = 0.0, max_completion = 0.0;
+
     if (route.size() <= 1) return {0.0, 0.0};
     int u = route[0];
 
     for (size_t i = 1; i < route.size(); i++) {
-          int v = route[i];
+        int v = route[i];
 
-        bool edge_found = false;
-        for (auto& [adj_node, edge] : adj[u]) {
-            if (adj_node == v) {
-                current_time += edge->avg_time;
-                edge_found = true;
-                break;
+        current_time += adj_matrix[u][v].second->avg_time;
+        if(pickup_nodes.count(v)) {
+            for(int delivery_node : pickup_nodes[v]) {
+                delivery_nodes[delivery_node]++;
             }
-        }
-        if (!edge_found) return {numeric_limits<double>::infinity(), numeric_limits<double>::infinity()};
+            pickup_nodes.erase(v);
+        } 
 
-        if (deliveryNodeToOrder.count(v)) {
-            int order_id = deliveryNodeToOrder[v];
-            completion_times[order_id] = current_time;
+        if(delivery_nodes.count(v)) {
+            sum_completion += current_time * delivery_nodes[v];
+            delivery_nodes.erase(v);
+            if (current_time > max_completion) {
+                max_completion = current_time;
+            }
         }
 
         u = v;
     }
 
-    double sum_completion = 0.0, max_completion = 0.0;
-    for (auto& kv : completion_times) {
-        sum_completion += kv.second;
-        if (kv.second > max_completion) max_completion = kv.second;
-    }
     return {sum_completion, max_completion};
 
-     }
-
-
-vector<int> Graph::buildGreedyRoute(int depot, unordered_map<int, pair<int,int>> orders, vector<int> cluster) {
-    unordered_set<int> available_pickups;
-    unordered_set<int> available_deliveries;
-    unordered_map<int,int> pickup_to_delivery;
-
-  
-    for (int order_id : cluster) {
-        int p = orders[order_id].first;
-        int d = orders[order_id].second;
-        available_pickups.insert(p);
-        pickup_to_delivery[p] = d;
-    }
-
-    vector<int> full_route;
-    int curr_node = depot;
-    full_route.push_back(depot);
-
-    if (available_pickups.empty()) return full_route;
-
-    while (!available_pickups.empty() || !available_deliveries.empty()) {
-        double best_time = numeric_limits<double>::max();
-        int next_node = -1;
-        bool take_pickup = false;
-        vector<int> best_path;
-
-        for (int p : available_pickups) {
-            bool possible = false;
-            auto [path, time] = shortestPath_minTime(curr_node, p, {}, {}, possible);
-            if (possible && time < best_time) {
-                best_time = time;
-                next_node = p;
-                take_pickup = true;
-                best_path = path;
-            }
-        }
-
-        for (int d : available_deliveries) {
-            bool possible = false;
-            auto [path, time] = shortestPath_minTime(curr_node, d, {}, {}, possible);
-            if (possible && time < best_time) {
-                best_time = time;
-                next_node = d;
-                take_pickup = false;
-                best_path = path;
-            }
-        }
-
-        if (next_node == -1 || best_path.size() < 2) break;
-
-      
-        full_route.insert(full_route.end(), best_path.begin() + 1, best_path.end());
-        curr_node = next_node;
-
-        if (take_pickup) {
-            available_pickups.erase(next_node);
-            available_deliveries.insert(pickup_to_delivery[next_node]);
-        } else {
-            available_deliveries.erase(next_node);
-        }
-    }
-
-    return full_route;
 }
+
 
 vector<vector<int>> Graph::kmeansPlusPlusClusters(
         int no_agents,
@@ -473,30 +412,38 @@ vector<vector<int>> Graph::kmeansPlusPlusClusters(
 
     for (auto& kv : orders) {
         int oid = kv.first;
-        int p = kv.second.first;
-        int d = kv.second.second;
+        int p   = kv.second.first;
+        int d   = kv.second.second;
 
-        double cx = (nodes[p]->lat + nodes[d]->lat) / 2.0;
-        double cy = (nodes[p]->lon + nodes[d]->lon) / 2.0;
+        double cx = (nodes[p]->lat + nodes[d]->lat) * 0.5;
+        double cy = (nodes[p]->lon + nodes[d]->lon) * 0.5;
 
         order_ids.push_back(oid);
         centers.push_back({cx, cy});
     }
 
-    int m = centers.size();
+    int m = (int)centers.size();
+    if (m == 0 || no_agents <= 0) {
+        return {}; 
+    }
+
     vector<vector<int>> clusters(no_agents);
 
     if (no_agents >= m) {
-        for (int i = 0; i < m; i++)
-            clusters[i % no_agents].push_back(order_ids[i]);
+        int k = 0;
+        for (int i = 0; i < m; ++i) {
+            clusters[k].push_back(order_ids[i]);
+            k = (k + 1) % no_agents;
+        }
         return clusters;
     }
 
-    
+    int K = no_agents;
     vector<bool> used(m, false);
     vector<pair<double,double>> seeds;
+    seeds.reserve(K);
 
-    double meanx = 0, meany = 0;
+    double meanx = 0.0, meany = 0.0;
     for (auto& c : centers) {
         meanx += c.first;
         meany += c.second;
@@ -506,9 +453,8 @@ vector<vector<int>> Graph::kmeansPlusPlusClusters(
 
     int first = -1;
     double best = 1e18;
-
     for (int i = 0; i < m; i++) {
-        double dx = centers[i].first - meanx;
+        double dx = centers[i].first  - meanx;
         double dy = centers[i].second - meany;
         double d2 = dx*dx + dy*dy;
         if (d2 < best) {
@@ -522,13 +468,12 @@ vector<vector<int>> Graph::kmeansPlusPlusClusters(
 
     vector<double> minDistSq(m, 1e18);
 
-    for (int k = 1; k < no_agents; k++) {
-
+    for (int k = 1; k < K; k++) {
         auto& last = seeds.back();
 
         for (int i = 0; i < m; i++) {
             if (!used[i]) {
-                double dx = centers[i].first - last.first;
+                double dx = centers[i].first  - last.first;
                 double dy = centers[i].second - last.second;
                 double d2 = dx*dx + dy*dy;
                 if (d2 < minDistSq[i]) minDistSq[i] = d2;
@@ -536,12 +481,11 @@ vector<vector<int>> Graph::kmeansPlusPlusClusters(
         }
 
         int next = -1;
-        double bestD = -1;
-
+        double bestD = -1.0;
         for (int i = 0; i < m; i++) {
             if (!used[i] && minDistSq[i] > bestD) {
                 bestD = minDistSq[i];
-                next = i;
+                next  = i;
             }
         }
 
@@ -549,26 +493,47 @@ vector<vector<int>> Graph::kmeansPlusPlusClusters(
         seeds.push_back(centers[next]);
     }
 
+    vector<int> capacity(K, m / K);
+    int extra = m % K;
+    for (int k = 0; k < extra; ++k) {
+        capacity[k]++;         
+    }
+
+    vector<int> clusterSize(K, 0);
+
     for (int i = 0; i < m; i++) {
         double bestDist = 1e18;
-        int bestCluster = 0;
+        int bestCluster = -1;
 
-        for (int k = 0; k < no_agents; k++) {
-            double dx = centers[i].first - seeds[k].first;
+        for (int k = 0; k < K; k++) {
+            if (clusterSize[k] >= capacity[k]) continue; 
+
+            double dx = centers[i].first  - seeds[k].first;
             double dy = centers[i].second - seeds[k].second;
             double d2 = dx*dx + dy*dy;
 
             if (d2 < bestDist) {
-                bestDist = d2;
+                bestDist    = d2;
                 bestCluster = k;
             }
         }
 
+
+        if (bestCluster == -1) {
+            bestCluster = 0;
+            for (int k = 1; k < K; k++) {
+                if (clusterSize[k] < clusterSize[bestCluster])
+                    bestCluster = k;
+            }
+        }
+
         clusters[bestCluster].push_back(order_ids[i]);
+        clusterSize[bestCluster]++;
     }
 
     return clusters;
 }
+
 
 
 vector<int> Graph::twoPointSwap(const vector<int>& route) {
@@ -585,10 +550,24 @@ vector<int> Graph::twoPointSwap(const vector<int>& route) {
 
 bool Graph::validPickupDelivery(const vector<int>& route,
      unordered_map<int,pair<int,int>>& orders)
-{
+{   
+    unordered_set<int> pickups;
+    unordered_set<int> deliveries;
+    for (auto& kv : orders) {
+        pickups.insert(kv.second.first);
+        deliveries.insert(kv.second.second);
+    }
     unordered_map<int,int> pos;
-    for (int i = 0; i < route.size(); i++)
-        pos[route[i]] = i;
+    for (size_t i = 0; i < route.size(); i++){
+        if(pickups.count(route[i])){
+            if(pos.find(route[i])==pos.end()){
+                pos[route[i]]=i;
+            }
+        }
+        else if(deliveries.count(route[i])){
+            pos[route[i]] = i;
+        }
+    }
 
     for (auto& kv : orders) {
         int p = kv.second.first;
@@ -621,45 +600,57 @@ Graph::delivery_route(int no_agents,
                       double& total_time)
 {
     total_time = 0.0;
+
     auto clusters = kmeansPlusPlusClusters(no_agents, orders);
+
     vector<pair<vector<int>,vector<int>>> output;
-    output.resize(no_agents);
-    for (int k = 0; k < no_agents; k++) {
+    output.reserve(no_agents);
 
-        vector<int> order_ids = clusters[k];
+    using Clock = chrono::high_resolution_clock;
 
-        vector<int> route = buildGreedyRoute(depot_node, orders, order_ids);
+    for (int k = 0; k < no_agents; ++k) {
+        auto order_ids = clusters[k];
 
-        auto [bestSum, bestMax] = computetime(route, orders);
-        double bestCost = bestSum;              // MIN_SUM objective
-        vector<int> bestRoute = route;
+        if (order_ids.empty()) {
+            output.push_back({{}, {}});
+            continue;
+        }
 
-        auto start = chrono::high_resolution_clock::now();
+        double bestSum = 0;
+        double bestMax = 0;
+        vector<int> bestRoute = buildGreedyRoute(depot_node, orders,order_ids,bestSum,bestMax);
+
+        auto res = computetime(bestRoute, orders, order_ids);
+        bestSum = res.first;
+        bestMax = res.second;
+        
+        double bestCost = bestSum;     
+
+        auto start = Clock::now();
 
         while (true) {
-            auto now = chrono::high_resolution_clock::now();
+            auto now = Clock::now();
             double elapsed = chrono::duration<double>(now - start).count();
-            if (elapsed > 0.3) break;  
+            if (elapsed > 0.1) break;   
 
-            vector<int> cand = 
+            vector<int> cand =
                 (rand() % 2 ? twoPointSwap(bestRoute)
                             : shiftNode(bestRoute));
 
             if (!validPickupDelivery(cand, orders))
                 continue;
 
-            auto [sumC, maxC] = computetime(cand, orders);
-            double costC = sumC;  // MIN_SUM
+            auto [sumC, maxC] = computetime(cand, orders, order_ids);
+            double costC = sumC;
 
             if (costC < bestCost) {
-                bestCost = costC;
-                bestRoute = cand;
+                bestCost  = costC;
+                bestRoute = std::move(cand);
             }
         }
 
-        output[k] = { bestRoute, order_ids };
-
         total_time += bestCost;
+        output.push_back({ std::move(bestRoute), std::move(order_ids) });
     }
 
     return output;
