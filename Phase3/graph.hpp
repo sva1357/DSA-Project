@@ -73,6 +73,8 @@ public:
     vector<pair<vector<int>, double>> kShortestPaths_exact(int source, int target, int K) ;
     double approxShortestPath(int source, int destination, 
                                      double time_budget_ms, double acceptable_error_pct);
+                        
+    vector<pair<vector<int>, double>>  shortestPath_allTimes(int source);
 
     bool isOverlapping(vector<int> path1, vector<int> path2, int threshold, int& overlap_count);
     
@@ -86,8 +88,11 @@ public:
 
     //----------PHASE-3---------------//
     //---------HEURISTIC-SAMPLE-------//
-    vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>> orders);
-      vector<pair<vector<int>,vector<int>>> delivery_route_near(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
+     vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>>& orders);
+
+   vector<int> buildGreedyRoute_1(int depot,unordered_map<int,pair<int,int>>& orders,vector<int>&cluster, double& sum_c, double& max_c); ;
+ 
+    vector<pair<vector<int>,vector<int>>> delivery_route_near(int no_agents, int depot_node, unordered_map<int,pair<int,int>>& orders, double& total_time);
 
     //--------COMMON FUNCTIONS---------//
    vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster) ;
@@ -99,9 +104,5 @@ public:
     vector<int> shiftNode(const vector<int>& route) ;
     bool validPickupDelivery(const vector<int>& route,unordered_map<int,pair<int,int>>& orders);
     vector<int> twoPointSwap(const vector<int>& route) ;
-
-
-
-
 
 };
