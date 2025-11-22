@@ -144,7 +144,7 @@ vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> o
          bool take_pickup = false;
 
         for (int node : available_pickups) {
-            double dist = euclideanDistance(curr, node);
+            double dist = getShortestPathTravelTime(curr, node);
             if (dist < best_dist) {
                 best_dist = dist;
                 next_node = node;
@@ -153,7 +153,7 @@ vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> o
         }
 
         for (int node : available_deliveries) {
-            double dist = euclideanDistance(curr, node);
+            double dist = getShortestPathTravelTime(curr, node);
             if (dist < best_dist) {
                 best_dist = dist;
                 next_node = node;
@@ -176,40 +176,63 @@ vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> o
     return route;
   }
 
-  double Graph::getShortestPathTravelTime(int start, int end){
+double Graph::shortestPath_minTime_fast(int start, int end, bool &possible) {
+    const double INF = std::numeric_limits<double>::max();
+    int n = adj.size();
 
-     bool possible;
-   auto [path, dist] = shortestPath_minDistance(start, end, {}, {}, possible);
+    std::priority_queue<
+        std::pair<double,int>, 
+        std::vector<std::pair<double,int>>, 
+        std::greater<std::pair<double,int>>
+    > pq;
 
+    std::vector<double> dist(n, INF);
 
-    if (!possible || path.size() < 2) {
-        return (start == end) ? 0.0 : std::numeric_limits<double>::max();
-    }
+    dist[start] = 0.0;
+    pq.push({0.0, start});
 
-    double total_travel_time = 0.0;
+    while (!pq.empty()) {
+        auto [currTime, u] = pq.top();
+        pq.pop();
 
-    for (size_t i = 1; i < path.size(); ++i) {
-        int u = path[i-1];
-        int v = path[i];
+      
+        if (currTime > dist[u]) continue;
 
-        bool edge_found = false;
-        // Look for edge u->v in adjacency
-        for (const auto& [adj_node, edge] : adj[u]) {
-            if (adj_node == v) {
-                total_travel_time += edge->avg_time;
-                edge_found = true;
-                break;
+      
+        if (u == end) {
+            possible = true;
+            return currTime;
+        }
+
+     
+        for (auto &[v, edge] : adj[u]) {
+            double newTime = currTime + edge->avg_time;
+            if (newTime < dist[v]) {
+                dist[v] = newTime;
+                pq.push({newTime, v});
             }
         }
-
-        if (!edge_found) {
-            return std::numeric_limits<double>::max();
-        }
     }
 
-    return total_travel_time;
-  }
+    possible = false;
+    return INF;
+}
 
+
+
+double Graph::getShortestPathTravelTime(int start, int end) {
+    if (start == end) return 0.0;
+
+    bool possible = false;
+    double t = shortestPath_minTime_fast(start, end, possible);
+
+    if (!possible) 
+        return std::numeric_limits<double>::max();
+
+    return t;
+}
+
+    
 pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair<int,int>> orders){
          double current_time = 0.0;
 
