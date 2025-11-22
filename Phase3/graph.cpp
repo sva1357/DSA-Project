@@ -136,15 +136,19 @@ vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> o
     int curr = depot;
     route.push_back(depot);
 
+      if (available_pickups.empty()) return route;
+
     while (!available_pickups.empty() || !available_deliveries.empty()) {
         double best_dist = std::numeric_limits<double>::max();
         int next_node = -1;
+         bool take_pickup = false;
 
         for (int node : available_pickups) {
             double dist = euclideanDistance(curr, node);
             if (dist < best_dist) {
                 best_dist = dist;
                 next_node = node;
+                take_pickup = true;
             }
         }
 
@@ -153,17 +157,21 @@ vector<int> Graph::buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> o
             if (dist < best_dist) {
                 best_dist = dist;
                 next_node = node;
+                take_pickup = false;
             }
         }
 
+          if (next_node == -1) break;
          route.push_back(next_node);
         curr = next_node;
 
-        if (available_pickups.count(next_node)) {
+        if ( take_pickup && available_pickups.count(next_node)) {
             available_pickups.erase(next_node);
              available_deliveries.insert(pickup_to_delivery[next_node]);
         } else {
-            available_deliveries.erase(next_node);
+             if (available_deliveries.count(next_node)){
+                    available_deliveries.erase(next_node);}
+            else{break;}
         }
         }
 
@@ -213,11 +221,15 @@ pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair
     }
 
     std::unordered_map<int, double> completion_times;
+    if (route.empty()) return {0.0, 0.0};
     int prev_node = route[0];
 
     for (size_t i = 1; i < route.size(); i++) {
         int curr_node = route[i];
         double dt = getShortestPathTravelTime(prev_node, curr_node);
+         if (!isfinite(dt)) {
+                return {numeric_limits<double>::infinity(), numeric_limits<double>::infinity()};}
+            
         current_time += dt;
 
         if (deliveryNodeToOrder.count(curr_node)) {
@@ -240,6 +252,33 @@ pair<double,double> Graph::computetime(vector<int> route, unordered_map<int,pair
 
 
   vector<pair<vector<int>,vector<int>>> Graph::delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time){
+        total_time = 0.0;
 
+    vector<vector<int>> clusters = nearestSeedClustering(no_agents, orders);
 
+    vector<pair<vector<int>, vector<int>>> result;
+    unordered_map<int,int> pickupOfDelivery;
+
+     for (auto& kv : orders) {
+        int oid = kv.first;
+        int p = kv.second.first;
+        int d = kv.second.second;
+        pickupOfDelivery[d] = p;
+    }
+
+    for (auto& cluster : clusters) {
+
+        if (cluster.empty()) {
+            result.push_back({{}, {}});
+            continue;
+        }
+
+        vector<int> route = buildGreedyRoute(depot_node, orders, no_agents, cluster);
+        auto [sum_c, max_c] = computetime(route, orders);
+
+        total_time += sum_c;
+        result.push_back({route, cluster});
+    }
+
+    return result;
   }
