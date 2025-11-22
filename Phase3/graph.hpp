@@ -83,7 +83,7 @@ public:
 
     vector<vector<int>> nearestSeedClustering(int no_agents,unordered_map<int,pair<int,int>> orders);
 
-   vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,int no_agents,vector<int>cluster) ;
+   vector<int> buildGreedyRoute(int depot,unordered_map<int,pair<int,int>> orders,vector<int>cluster) ;
    pair<double,double> computetime(vector<int> route, unordered_map<int,pair<int,int>> orders);
    double getShortestPathTravelTime(int start, int end);
     vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
