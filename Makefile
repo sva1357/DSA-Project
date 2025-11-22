@@ -16,7 +16,7 @@ SRC_PHASE2 = $(SRC_COMMON) Phase2/graph.cpp Phase2/QueryProcessor.cpp
 SRC_PHASE3 = $(SRC_COMMON) Phase3/graph.cpp Phase3/QueryProcessor.cpp
 
 # Default target
-all: $(TARGET_PHASE1) $(TARGET_PHASE2)
+all: $(TARGET_PHASE1) $(TARGET_PHASE2) $(TARGET_PHASE3)
 
 # Build Phase 1
 $(TARGET_PHASE1): $(SRC_PHASE1)

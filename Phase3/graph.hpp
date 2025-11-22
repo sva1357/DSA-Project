@@ -88,6 +88,4 @@ public:
  
     vector<pair<vector<int>,vector<int>>> delivery_route(int no_agents, int depot_node, unordered_map<int,pair<int,int>> orders, double& total_time);
 
-    void Graph::printGraph();
-
 };

@@ -20,37 +20,40 @@ using namespace std;
 #endif
 
 json processQuery(const json &q, Graph &g){
-    string type=q["type"];
 
-    #if defined(PHASE1)
-        if(type=="shortest_path"){
-            return shortest_path(q,g);
-        }
-        else if(type=="knn"){
-            return knn(q,g);
-        }
-        else if(type=="remove_edge"){
-            return removeEdge(q,g);
-        }
-        else if(type=="modify_edge"){
-            return modify_edge(q,g);
-        }
-    #elif defined(PHASE2)
-        if(type=="k_shortest_paths"){
-            return k_shortest_paths(q,g);
-        }
-        else if(type=="k_shortest_paths_heuristic"){
-            return k_shortest_paths_heuristic(q,g);
-        }
-        else if(type=="approx_shortest_path"){
-            return approx_shortest_path(q,g);
-        }
-    #elif defined(PHASE3)
-            return delivery_route_optimization(q,g);
-        
+    #if defined(PHASE3)
+        return delivery_route_optimization(q,g);
+    #else
+        string type=q["type"];
+
+        #if defined(PHASE1)
+            if(type=="shortest_path"){
+                return shortest_path(q,g);
+            }
+            else if(type=="knn"){
+                return knn(q,g);
+            }
+            else if(type=="remove_edge"){
+                return removeEdge(q,g);
+            }
+            else if(type=="modify_edge"){
+                return modify_edge(q,g);
+            }
+        #elif defined(PHASE2)
+            if(type=="k_shortest_paths"){
+                return k_shortest_paths(q,g);
+            }
+            else if(type=="k_shortest_paths_heuristic"){
+                return k_shortest_paths_heuristic(q,g);
+            }
+            else if(type=="approx_shortest_path"){
+                return approx_shortest_path(q,g);
+            }
+        #endif
+        return json{{"error", "Unknown query type"}, {"query_type", type}};
     #endif
 
-    return json{{"error", "Unknown query type"}, {"query_type", type}};
+    
 }
 int main(int argc, char* argv[]){
     ios::sync_with_stdio(false);
